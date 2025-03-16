@@ -1,46 +1,64 @@
-# Getting Started with Create React App
+# WeParty - Event Planning Application
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+WeParty is a modern web application that simplifies the process of planning events by connecting users with venues, DJs, and catering services all in one place.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **Home Page**: Quick access to create events or find services, with featured public events
+- **Create Event Flow**: Step-by-step process to plan your event
+  - Select date and basic event details
+  - Choose a venue from available options
+  - Select a DJ for your event
+  - Add catering services (optional)
+  - Review and confirm your event details
+- **Find Services**: Search and filter for specific services
+  - Venues with filters for type, size, and price
+  - DJs with filters for music genres and price
+  - Catering services with filters for cuisine types and price
+- **Explore Page**: Discover top-rated venues, DJs, and catering services
+- **My Events**: View and manage your upcoming and past events
+- **Profile Page**: User profile with contact information and account settings
 
-### `npm start`
+## Technology Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- **Frontend**: React with TypeScript
+- **UI Components**: Material-UI (MUI)
+- **Routing**: React Router
+- **Styling**: Emotion (CSS-in-JS)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Getting Started
 
-### `npm test`
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Start the development server:
+   ```
+   npm start
+   ```
+4. Open [http://localhost:3000](http://localhost:3000) to view it in the browser
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Project Structure
 
-### `npm run build`
+- `src/components/`: Reusable UI components
+- `src/pages/`: Application pages
+- `src/data/`: Mock data for the MVP
+- `src/theme.ts`: Application theme configuration
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Future Enhancements
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- User authentication and registration
+- Real backend integration with database
+- Booking and payment processing
+- Chat functionality between users and service providers
+- Reviews and ratings system
+- Mobile application
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Screenshots
 
-### `npm run eject`
+(Screenshots will be added here)
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## License
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+MIT
