@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -15,12 +15,22 @@ import {
   MenuItem,
   Chip,
   Stack,
-  Button
+  Button,
+  Paper,
+  IconButton,
+  Tooltip,
+  SelectChangeEvent
 } from '@mui/material';
-import { Search as SearchIcon, FilterList as FilterIcon } from '@mui/icons-material';
+import { 
+  Search as SearchIcon, 
+  FilterList as FilterIcon,
+  MyLocation as MyLocationIcon,
+  LocationOn as LocationOnIcon
+} from '@mui/icons-material';
 import Layout from '../components/Layout';
 import ServiceCard from '../components/ServiceCard';
-import { venues, djs, cateringServices } from '../data/mockData';
+import { venues, djs, cateringServices, calculateDistance } from '../data/mockData';
+import { useAuth } from '../contexts/AuthContext';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -49,6 +59,7 @@ const TabPanel = (props: TabPanelProps) => {
 };
 
 const FindServicePage: React.FC = () => {
+  const { currentUser } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,6 +70,14 @@ const FindServicePage: React.FC = () => {
   const [venueSize, setVenueSize] = useState<string[]>([]);
   const [djGenres, setDjGenres] = useState<string[]>([]);
   const [cuisineTypes, setCuisineTypes] = useState<string[]>([]);
+  
+  // Location and distance filtering
+  const [location, setLocation] = useState({
+    address: currentUser?.location?.address || 'New York, NY',
+    coordinates: currentUser?.location?.coordinates || { lat: 40.7128, lng: -74.0060 }
+  });
+  const [customLocation, setCustomLocation] = useState('');
+  const [distanceRadius, setDistanceRadius] = useState<number>(10); // in km
   
   // Handle tab change
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -71,38 +90,94 @@ const FindServicePage: React.FC = () => {
     setShowFilters(!showFilters);
   };
   
+  // Handle multiple select change
+  const handleMultiSelectChange = (
+    event: SelectChangeEvent<string[]>,
+    setter: React.Dispatch<React.SetStateAction<string[]>>
+  ) => {
+    setter(event.target.value as string[]);
+  };
+  
+  // Use current location (mock implementation)
+  const useCurrentLocation = () => {
+    // In a real app, this would use the browser's geolocation API
+    // For now, we'll just set a mock location
+    setLocation({
+      address: 'Current Location',
+      coordinates: { lat: 40.7128, lng: -74.0060 }
+    });
+    setCustomLocation('');
+  };
+  
+  // Set custom location (mock implementation)
+  const setCustomLocationHandler = () => {
+    if (customLocation) {
+      // In a real app, this would use a geocoding API to convert address to coordinates
+      // For now, we'll just set mock coordinates
+      setLocation({
+        address: customLocation,
+        coordinates: { lat: 40.7500, lng: -73.9800 }
+      });
+    }
+  };
+  
+  // Calculate distance for each service
+  const calculateDistances = (services: any[]) => {
+    return services.map(service => {
+      if (service.coordinates) {
+        const distance = calculateDistance(
+          location.coordinates.lat,
+          location.coordinates.lng,
+          service.coordinates.lat,
+          service.coordinates.lng
+        );
+        return { ...service, distance };
+      }
+      return service;
+    });
+  };
+  
   // Filter venues based on criteria
-  const filteredVenues = venues.filter(venue => {
-    const matchesSearch = venue.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         venue.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPrice = venue.price >= priceRange[0] && venue.price <= priceRange[1];
-    const matchesType = venueType.length === 0 || venueType.includes(venue.type);
-    const matchesSize = venueSize.length === 0 || venueSize.includes(venue.size);
-    
-    return matchesSearch && matchesPrice && matchesType && matchesSize;
-  });
+  const filteredVenues = calculateDistances(venues)
+    .filter(venue => {
+      const matchesSearch = venue.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          venue.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesPrice = venue.price >= priceRange[0] && venue.price <= priceRange[1];
+      const matchesType = venueType.length === 0 || venueType.includes(venue.type);
+      const matchesSize = venueSize.length === 0 || venueSize.includes(venue.size);
+      const matchesDistance = venue.distance <= distanceRadius;
+      
+      return matchesSearch && matchesPrice && matchesType && matchesSize && matchesDistance;
+    })
+    .sort((a, b) => a.distance - b.distance);
   
   // Filter DJs based on criteria
-  const filteredDJs = djs.filter(dj => {
-    const matchesSearch = dj.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         dj.bio.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPrice = dj.price >= priceRange[0] && dj.price <= priceRange[1];
-    const matchesGenres = djGenres.length === 0 || 
-                         dj.genres.some(genre => djGenres.includes(genre));
-    
-    return matchesSearch && matchesPrice && matchesGenres;
-  });
+  const filteredDJs = calculateDistances(djs)
+    .filter(dj => {
+      const matchesSearch = dj.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          dj.bio.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesPrice = dj.price >= priceRange[0] && dj.price <= priceRange[1];
+      const matchesGenres = djGenres.length === 0 || 
+                          dj.genres.some((genre: string) => djGenres.includes(genre));
+      const matchesDistance = dj.distance <= distanceRadius;
+      
+      return matchesSearch && matchesPrice && matchesGenres && matchesDistance;
+    })
+    .sort((a, b) => a.distance - b.distance);
   
   // Filter catering services based on criteria
-  const filteredCatering = cateringServices.filter(catering => {
-    const matchesSearch = catering.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         catering.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPrice = catering.price >= priceRange[0] / 100 && catering.price <= priceRange[1] / 100;
-    const matchesCuisine = cuisineTypes.length === 0 || 
-                          catering.cuisineType.some(cuisine => cuisineTypes.includes(cuisine));
-    
-    return matchesSearch && matchesPrice && matchesCuisine;
-  });
+  const filteredCatering = calculateDistances(cateringServices)
+    .filter(catering => {
+      const matchesSearch = catering.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          catering.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesPrice = catering.price >= priceRange[0] / 100 && catering.price <= priceRange[1] / 100;
+      const matchesCuisine = cuisineTypes.length === 0 || 
+                          catering.cuisineType.some((cuisine: string) => cuisineTypes.includes(cuisine));
+      const matchesDistance = catering.distance <= distanceRadius;
+      
+      return matchesSearch && matchesPrice && matchesCuisine && matchesDistance;
+    })
+    .sort((a, b) => a.distance - b.distance);
   
   // Get all unique venue types
   const allVenueTypes = Array.from(new Set(venues.map(venue => venue.type)));
@@ -115,14 +190,6 @@ const FindServicePage: React.FC = () => {
   
   // Get all unique cuisine types
   const allCuisineTypes = Array.from(new Set(cateringServices.flatMap(catering => catering.cuisineType)));
-  
-  // Handle multiple select change
-  const handleMultiSelectChange = (
-    event: React.ChangeEvent<{ value: unknown }>,
-    setter: React.Dispatch<React.SetStateAction<string[]>>
-  ) => {
-    setter(event.target.value as string[]);
-  };
   
   return (
     <Layout title="Find a Service">
@@ -169,11 +236,65 @@ const FindServicePage: React.FC = () => {
               variant="outlined"
             />
             
-            {/* Filters Section */}
+            {/* Location Filter (Always visible) */}
+            <Paper sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 1 }}>
+              <Typography variant="subtitle1" gutterBottom fontWeight="medium">
+                Location
+              </Typography>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <LocationOnIcon color="primary" sx={{ mr: 1 }} />
+                <Typography variant="body1" sx={{ flexGrow: 1 }}>
+                  {location.address}
+                </Typography>
+                <Tooltip title="Use current location">
+                  <IconButton onClick={useCurrentLocation} size="small">
+                    <MyLocationIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Enter a location"
+                  value={customLocation}
+                  onChange={(e) => setCustomLocation(e.target.value)}
+                />
+                <Button 
+                  variant="outlined" 
+                  onClick={setCustomLocationHandler}
+                  disabled={!customLocation}
+                >
+                  Set
+                </Button>
+              </Box>
+              
+              <Box sx={{ mt: 2 }}>
+                <Typography id="distance-slider" gutterBottom>
+                  Distance: {distanceRadius} km
+                </Typography>
+                <Slider
+                  value={distanceRadius}
+                  onChange={(e, newValue) => setDistanceRadius(newValue as number)}
+                  min={1}
+                  max={50}
+                  step={1}
+                  aria-labelledby="distance-slider"
+                />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2" color="text.secondary">1 km</Typography>
+                  <Typography variant="body2" color="text.secondary">50 km</Typography>
+                </Box>
+              </Box>
+            </Paper>
+            
+            {/* Additional Filters Section */}
             {showFilters && (
-              <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 1 }}>
-                <Typography variant="h6" gutterBottom>
-                  Filters
+              <Paper sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 1 }}>
+                <Typography variant="subtitle1" gutterBottom fontWeight="medium">
+                  Additional Filters
                 </Typography>
                 
                 <Box sx={{ mb: 3 }}>
@@ -207,7 +328,7 @@ const FindServicePage: React.FC = () => {
                         labelId="venue-type-label"
                         multiple
                         value={venueType}
-                        onChange={(e) => handleMultiSelectChange(e as any, setVenueType)}
+                        onChange={(e) => handleMultiSelectChange(e as SelectChangeEvent<string[]>, setVenueType)}
                         renderValue={(selected) => (
                           <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                             {(selected as string[]).map((value) => (
@@ -230,7 +351,7 @@ const FindServicePage: React.FC = () => {
                         labelId="venue-size-label"
                         multiple
                         value={venueSize}
-                        onChange={(e) => handleMultiSelectChange(e as any, setVenueSize)}
+                        onChange={(e) => handleMultiSelectChange(e as SelectChangeEvent<string[]>, setVenueSize)}
                         renderValue={(selected) => (
                           <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                             {(selected as string[]).map((value) => (
@@ -257,7 +378,7 @@ const FindServicePage: React.FC = () => {
                       labelId="dj-genres-label"
                       multiple
                       value={djGenres}
-                      onChange={(e) => handleMultiSelectChange(e as any, setDjGenres)}
+                      onChange={(e) => handleMultiSelectChange(e as SelectChangeEvent<string[]>, setDjGenres)}
                       renderValue={(selected) => (
                         <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                           {(selected as string[]).map((value) => (
@@ -283,7 +404,7 @@ const FindServicePage: React.FC = () => {
                       labelId="cuisine-types-label"
                       multiple
                       value={cuisineTypes}
-                      onChange={(e) => handleMultiSelectChange(e as any, setCuisineTypes)}
+                      onChange={(e) => handleMultiSelectChange(e as SelectChangeEvent<string[]>, setCuisineTypes)}
                       renderValue={(selected) => (
                         <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                           {(selected as string[]).map((value) => (
@@ -300,7 +421,7 @@ const FindServicePage: React.FC = () => {
                     </Select>
                   </FormControl>
                 )}
-              </Box>
+              </Paper>
             )}
           </Box>
           

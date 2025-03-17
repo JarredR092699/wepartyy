@@ -10,15 +10,20 @@ import {
   BottomNavigation, 
   BottomNavigationAction,
   styled,
-  alpha
+  alpha,
+  Badge
 } from '@mui/material';
 import { 
   Home as HomeIcon, 
   Event as EventIcon, 
   Explore as ExploreIcon, 
   Person as PersonIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  CalendarMonth as CalendarIcon,
+  Message as MessageIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
 
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -68,6 +73,10 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser, isVendor } = useAuth();
+  
+  // Get unread message count (mock for now)
+  const unreadMessageCount = 2;
   
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -101,36 +110,75 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch
       </Box>
       
       <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={3}>
-        <BottomNavigation
-          showLabels
-          value={
-            location.pathname === '/' ? 0 :
-            location.pathname === '/my-events' ? 1 :
-            location.pathname === '/explore' ? 2 :
-            location.pathname === '/profile' ? 3 : 0
-          }
-        >
-          <BottomNavigationAction 
-            label="Home" 
-            icon={<HomeIcon />} 
-            onClick={() => navigate('/')}
-          />
-          <BottomNavigationAction 
-            label="My Events" 
-            icon={<EventIcon />} 
-            onClick={() => navigate('/my-events')}
-          />
-          <BottomNavigationAction 
-            label="Explore" 
-            icon={<ExploreIcon />} 
-            onClick={() => navigate('/explore')}
-          />
-          <BottomNavigationAction 
-            label="Profile" 
-            icon={<PersonIcon />} 
-            onClick={() => navigate('/profile')}
-          />
-        </BottomNavigation>
+        {isVendor ? (
+          // Service Provider Navigation
+          <BottomNavigation
+            showLabels
+            value={
+              location.pathname === '/' || location.pathname === '/service-dashboard' ? 0 :
+              location.pathname === '/manage-services' ? 1 :
+              location.pathname === '/messages' ? 2 :
+              location.pathname === '/profile' ? 3 : 0
+            }
+          >
+            <BottomNavigationAction 
+              label="Dashboard" 
+              icon={<CalendarIcon />} 
+              onClick={() => navigate('/service-dashboard')}
+            />
+            <BottomNavigationAction 
+              label="Services" 
+              icon={<EventIcon />} 
+              onClick={() => navigate('/manage-services')}
+            />
+            <BottomNavigationAction 
+              label="Messages" 
+              icon={
+                <Badge badgeContent={unreadMessageCount} color="error">
+                  <MessageIcon />
+                </Badge>
+              } 
+              onClick={() => navigate('/messages')}
+            />
+            <BottomNavigationAction 
+              label="Profile" 
+              icon={<PersonIcon />} 
+              onClick={() => navigate('/profile')}
+            />
+          </BottomNavigation>
+        ) : (
+          // Client Navigation
+          <BottomNavigation
+            showLabels
+            value={
+              location.pathname === '/' ? 0 :
+              location.pathname === '/my-events' ? 1 :
+              location.pathname === '/explore' ? 2 :
+              location.pathname === '/profile' ? 3 : 0
+            }
+          >
+            <BottomNavigationAction 
+              label="Home" 
+              icon={<HomeIcon />} 
+              onClick={() => navigate('/')}
+            />
+            <BottomNavigationAction 
+              label="My Events" 
+              icon={<EventIcon />} 
+              onClick={() => navigate('/my-events')}
+            />
+            <BottomNavigationAction 
+              label="Explore" 
+              icon={<ExploreIcon />} 
+              onClick={() => navigate('/explore')}
+            />
+            <BottomNavigationAction 
+              label="Profile" 
+              icon={<PersonIcon />} 
+              onClick={() => navigate('/profile')}
+            />
+          </BottomNavigation>
+        )}
       </Paper>
       
       {/* Add padding at the bottom to account for the fixed bottom navigation */}

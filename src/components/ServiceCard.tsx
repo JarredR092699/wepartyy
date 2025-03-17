@@ -1,141 +1,398 @@
 import React from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardMedia, 
-  Typography, 
-  Box, 
-  Chip,
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
   Rating,
-  Stack
+  Chip,
+  Stack,
+  Divider,
+  CardActions,
+  Button,
+  Tooltip
 } from '@mui/material';
-import { Venue, DJ, CateringService } from '../data/mockData';
-
-type ServiceType = Venue | DJ | CateringService;
+import {
+  LocationOn as LocationIcon,
+  AttachMoney as MoneyIcon,
+  MusicNote as MusicIcon,
+  Restaurant as RestaurantIcon,
+  Place as PlaceIcon,
+  Chat as ChatIcon,
+  VerifiedUser as VerifiedIcon,
+  Theaters as EntertainmentIcon,
+  PhotoCamera as PhotographyIcon,
+  Brush as DecorationIcon,
+  Speaker as AudioVisualIcon,
+  Chair as FurnitureIcon,
+  LocalBar as BarServiceIcon,
+  Security as SecurityIcon,
+  AccessTime as TimeIcon
+} from '@mui/icons-material';
+import { 
+  Venue, 
+  DJ, 
+  CateringService, 
+  Entertainment, 
+  Photography, 
+  Decoration, 
+  AudioVisual, 
+  Furniture, 
+  BarService, 
+  Security 
+} from '../data/mockData';
+import MessageButton from './MessageButton';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ServiceCardProps {
-  service: ServiceType;
-  type: 'venue' | 'dj' | 'catering';
+  service: Venue | DJ | CateringService | Entertainment | Photography | Decoration | AudioVisual | Furniture | BarService | Security;
+  type: 'venue' | 'dj' | 'catering' | 'entertainment' | 'photography' | 'decoration' | 'audioVisual' | 'furniture' | 'barService' | 'security';
   onClick?: () => void;
 }
 
 const ServiceCard: React.FC<ServiceCardProps> = ({ service, type, onClick }) => {
-  // Determine image source based on service type
-  const getImageSrc = () => {
-    if (type === 'venue') {
-      return (service as Venue).images?.[0] || 'https://via.placeholder.com/300x150';
-    } else {
-      return (service as DJ | CateringService).image || 'https://via.placeholder.com/300x150';
+  // Common properties
+  const { name, price, rating, reviews } = service;
+  const { currentUser } = useAuth();
+  
+  // Get type-specific properties
+  const getTypeSpecificInfo = () => {
+    switch (type) {
+      case 'venue':
+        const venue = service as Venue;
+        return (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <LocationIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                {venue.location}
+              </Typography>
+            </Box>
+            
+            <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+              <Chip size="small" label={venue.type} />
+              <Chip size="small" label={venue.size} />
+            </Stack>
+          </>
+        );
+        
+      case 'dj':
+        const dj = service as DJ;
+        return (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <MusicIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {dj.genres.join(', ')}
+              </Typography>
+            </Box>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {dj.experience} years experience
+            </Typography>
+          </>
+        );
+        
+      case 'catering':
+        const catering = service as CateringService;
+        return (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <RestaurantIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {catering.cuisineType.join(', ')}
+              </Typography>
+            </Box>
+          </>
+        );
+        
+      case 'entertainment':
+        const entertainment = service as Entertainment;
+        return (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <EntertainmentIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {entertainment.type.join(', ')}
+              </Typography>
+            </Box>
+            
+            {entertainment.genre && (
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <MusicIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+                <Typography variant="body2" color="text.secondary" noWrap>
+                  {entertainment.genre.join(', ')}
+                </Typography>
+              </Box>
+            )}
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <TimeIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                {entertainment.duration} hour{entertainment.duration !== 1 ? 's' : ''}
+              </Typography>
+            </Box>
+          </>
+        );
+        
+      case 'photography':
+        const photography = service as Photography;
+        return (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <PhotographyIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {photography.type.join(', ')}
+              </Typography>
+            </Box>
+            
+            <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap' }}>
+              {photography.style.map((style, index) => (
+                <Chip key={index} size="small" label={style} sx={{ mb: 0.5 }} />
+              ))}
+            </Stack>
+            
+            {photography.priceType === 'package' && photography.packageHours && (
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <TimeIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+                <Typography variant="body2" color="text.secondary">
+                  {photography.packageHours} hour{photography.packageHours !== 1 ? 's' : ''} included
+                </Typography>
+              </Box>
+            )}
+          </>
+        );
+        
+      case 'decoration':
+        const decoration = service as Decoration;
+        return (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <DecorationIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {decoration.type.join(', ')}
+              </Typography>
+            </Box>
+            
+            <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap' }}>
+              {decoration.style.map((style, index) => (
+                <Chip key={index} size="small" label={style} sx={{ mb: 0.5 }} />
+              ))}
+            </Stack>
+          </>
+        );
+        
+      case 'audioVisual':
+        const audioVisual = service as AudioVisual;
+        return (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <AudioVisualIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {audioVisual.equipmentTypes.join(', ')}
+              </Typography>
+            </Box>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {audioVisual.includesTechnician ? 'Includes technician' : 'No technician included'}
+            </Typography>
+          </>
+        );
+        
+      case 'furniture':
+        const furniture = service as Furniture;
+        return (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <FurnitureIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {furniture.itemTypes.join(', ')}
+              </Typography>
+            </Box>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {furniture.includesSetup ? 'Includes setup/teardown' : 'Setup not included'}
+            </Typography>
+          </>
+        );
+        
+      case 'barService':
+        const barService = service as BarService;
+        return (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <BarServiceIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {barService.serviceTypes.join(', ')}
+              </Typography>
+            </Box>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {barService.includesBartenders ? 'Includes bartenders' : 'Bartenders not included'}
+            </Typography>
+          </>
+        );
+        
+      case 'security':
+        const security = service as Security;
+        return (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <SecurityIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {security.serviceTypes.join(', ')}
+              </Typography>
+            </Box>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {security.uniformed ? 'Uniformed staff' : 'Plain clothes staff'}
+            </Typography>
+          </>
+        );
+        
+      default:
+        return null;
     }
   };
   
-  // Get appropriate tags based on service type
-  const getTags = () => {
-    switch (type) {
-      case 'venue':
-        return [(service as Venue).type, (service as Venue).size, ...(service as Venue).style.slice(0, 2)];
-      case 'dj':
-        return (service as DJ).genres.slice(0, 3);
-      case 'catering':
-        return (service as CateringService).cuisineType.slice(0, 3);
-      default:
-        return [];
+  // Display distance if available
+  const displayDistance = () => {
+    if ('distance' in service && service.distance !== undefined) {
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <PlaceIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+          <Typography variant="body2" color="text.secondary">
+            {service.distance.toFixed(1)} km away
+          </Typography>
+        </Box>
+      );
     }
+    return null;
+  };
+
+  // Get recipient information for messaging
+  const getRecipient = () => {
+    // In a real app, this would get the actual user ID of the service owner
+    // For now, we'll use the service ID as a placeholder
+    return {
+      id: service.ownerId || service.id,
+      name: name
+    };
   };
   
-  // Format price based on service type
-  const formatPrice = () => {
-    switch (type) {
-      case 'venue':
-        return `$${(service as Venue).price}`;
-      case 'dj':
-        return `$${(service as DJ).price}`;
-      case 'catering':
-        return `$${(service as CateringService).price} per person`;
-      default:
-        return '';
-    }
+  // Determine if the current user is the owner of this service
+  const isOwner = () => {
+    return currentUser && service.ownerId === currentUser.id;
+  };
+
+  // Check if the service owner is verified
+  const isVerified = () => {
+    // In a real app, this would check if the owner of this service is verified
+    // For now, we'll use a mock implementation
+    return service.ownerId === 'u3' || service.ownerId === 'u4'; // Mock verified users
   };
   
-  // Get description based on service type
-  const getDescription = () => {
+  // Get price display based on service type and pricing model
+  const getPriceDisplay = () => {
     switch (type) {
-      case 'venue':
-        return (service as Venue).description;
-      case 'dj':
-        return (service as DJ).bio;
       case 'catering':
-        return (service as CateringService).description;
+        return `$${price}/person`;
+      case 'entertainment':
+        const entertainment = service as Entertainment;
+        return `$${price}${entertainment.priceType === 'hourly' ? '/hour' : ' flat rate'}`;
+      case 'photography':
+        const photography = service as Photography;
+        return `$${price}${photography.priceType === 'hourly' ? '/hour' : ' package'}`;
+      case 'decoration':
+        const decoration = service as Decoration;
+        return `$${price}${decoration.priceType === 'package' ? ' package' : ' starting price'}`;
+      case 'audioVisual':
+        const audioVisual = service as AudioVisual;
+        return `$${price}${audioVisual.priceType === 'package' ? ' package' : ' base price'}`;
+      case 'furniture':
+        const furniture = service as Furniture;
+        return `$${price}${furniture.priceType === 'per_item' ? '/item' : ' package'}`;
+      case 'barService':
+        const barService = service as BarService;
+        if (barService.priceType === 'per_person') return `$${price}/person`;
+        if (barService.priceType === 'per_hour') return `$${price}/hour`;
+        return `$${price} package`;
+      case 'security':
+        const security = service as Security;
+        if (security.priceType === 'per_guard') return `$${price}/guard`;
+        if (security.priceType === 'per_hour') return `$${price}/hour`;
+        return `$${price} package`;
       default:
-        return '';
+        return `$${price}`;
     }
   };
   
   return (
     <Card 
       sx={{ 
-        maxWidth: '100%', 
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform 0.2s ease-in-out',
-        '&:hover': {
-          transform: onClick ? 'translateY(-4px)' : 'none',
-        }
-      }} 
-      onClick={onClick}
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        cursor: onClick ? 'pointer' : 'default'
+      }}
     >
-      <CardMedia
-        component="img"
-        height="140"
-        image={getImageSrc()}
-        alt={service.name}
-        sx={{ objectFit: 'cover' }}
-      />
-      <CardContent>
-        <Typography gutterBottom variant="h6" component="div" noWrap>
-          {service.name}
-        </Typography>
+      <CardContent 
+        sx={{ flexGrow: 1 }}
+        onClick={onClick}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="h6" component="h2" noWrap sx={{ maxWidth: 'calc(100% - 30px)' }}>
+            {name}
+          </Typography>
+          
+          {isVerified() && (
+            <Tooltip title="Verified Vendor">
+              <VerifiedIcon color="primary" fontSize="small" />
+            </Tooltip>
+          )}
+        </Box>
         
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-          <Rating 
-            value={service.rating} 
-            precision={0.5} 
-            size="small" 
-            readOnly 
-          />
-          <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
-            ({service.reviews})
+          <Rating value={rating} precision={0.5} readOnly size="small" />
+          <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+            ({reviews})
           </Typography>
         </Box>
         
-        <Typography variant="body2" color="text.primary" sx={{ fontWeight: 'bold', mb: 1 }}>
-          {formatPrice()}
-        </Typography>
+        {getTypeSpecificInfo()}
         
-        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
-          {getTags().map((tag, index) => (
-            <Chip 
-              key={index} 
-              label={tag} 
-              size="small" 
-              variant="outlined"
-              sx={{ height: 20, fontSize: '0.7rem' }} 
-            />
-          ))}
-        </Stack>
+        {displayDistance()}
         
-        <Typography 
-          variant="body2" 
-          color="text.secondary"
-          sx={{
-            display: '-webkit-box',
-            overflow: 'hidden',
-            WebkitBoxOrient: 'vertical',
-            WebkitLineClamp: 2,
-          }}
-        >
-          {getDescription()}
-        </Typography>
+        <Divider sx={{ my: 1 }} />
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <MoneyIcon fontSize="small" color="primary" sx={{ mr: 0.5 }} />
+            <Typography variant="h6" color="primary.main">
+              {getPriceDisplay()}
+            </Typography>
+          </Box>
+          
+          {service.availability && (
+            <Typography variant="caption" color="text.secondary">
+              {service.availability.length} available dates
+            </Typography>
+          )}
+        </Box>
       </CardContent>
+      
+      {/* Only show message button if user is logged in and not the owner */}
+      {currentUser && !isOwner() && (
+        <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+          <MessageButton 
+            recipient={getRecipient()} 
+            variant="text" 
+            size="small" 
+            color="primary"
+            prefilledMessage={`Hi, I'm interested in your ${type} service.`}
+          />
+        </CardActions>
+      )}
     </Card>
   );
 };
