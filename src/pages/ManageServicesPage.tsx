@@ -117,9 +117,6 @@ const ManageServicesPage: React.FC = () => {
         return cateringServices.filter(service => service.ownerId === currentUser.id);
       case 'venue':
         return venues.filter(venue => venue.ownerId === currentUser.id);
-      case 'planner':
-        // Planners don't have specific services in our mock data
-        return [];
       default:
         return [];
     }
@@ -992,7 +989,7 @@ const ManageServicesPage: React.FC = () => {
     
     let dialogTitle = isNewService ? 'Add New Service' : 'Edit Service';
     
-    switch (currentUser.role) {
+    switch (currentUser?.role) {
       case 'dj':
         dialogTitle = isNewService ? 'Add New DJ Service' : 'Edit DJ Service';
         break;
@@ -1001,9 +998,6 @@ const ManageServicesPage: React.FC = () => {
         break;
       case 'venue':
         dialogTitle = isNewService ? 'Add New Venue' : 'Edit Venue';
-        break;
-      case 'planner':
-        dialogTitle = isNewService ? 'Add New Planning Service' : 'Edit Planning Service';
         break;
     }
     

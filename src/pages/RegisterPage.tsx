@@ -41,7 +41,7 @@ const RegisterPage: React.FC = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'client' as UserRole,
+    role: 'eventOrganizer' as UserRole,
     name: '',
     phone: '',
     // Vendor specific fields
@@ -146,7 +146,7 @@ const RegisterPage: React.FC = () => {
     
     try {
       // Create location object for vendors
-      const location = formData.role !== 'client' ? {
+      const location = formData.role !== 'eventOrganizer' && formData.role !== 'publicUser' ? {
         address: `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`,
         coordinates: {
           // Mock coordinates - in a real app, you would use a geocoding API
@@ -238,11 +238,11 @@ const RegisterPage: React.FC = () => {
                 onChange={handleSelectChange}
                 label="Account Type"
               >
-                <MenuItem value="client">Client (Event Organizer)</MenuItem>
+                <MenuItem value="eventOrganizer">Event Organizer</MenuItem>
+                <MenuItem value="publicUser">Public User</MenuItem>
                 <MenuItem value="venue">Venue Provider</MenuItem>
                 <MenuItem value="dj">DJ</MenuItem>
                 <MenuItem value="caterer">Caterer</MenuItem>
-                <MenuItem value="planner">Event Planner</MenuItem>
                 <MenuItem value="entertainment">Entertainment Provider</MenuItem>
                 <MenuItem value="photography">Photography Provider</MenuItem>
                 <MenuItem value="decoration">Decoration Provider</MenuItem>
@@ -1187,7 +1187,7 @@ const RegisterPage: React.FC = () => {
   };
   
   // Determine if we should show the stepper (only for vendors)
-  const isVendor = formData.role !== 'client';
+  const isVendor = formData.role !== 'eventOrganizer' && formData.role !== 'publicUser';
   const showStepper = isVendor && activeStep > 0;
   
   return (
@@ -1233,7 +1233,7 @@ const RegisterPage: React.FC = () => {
                 <div></div> // Empty div for spacing
               )}
               
-              {activeStep === 0 && formData.role === 'client' ? (
+              {activeStep === 0 && (formData.role === 'eventOrganizer' || formData.role === 'publicUser') ? (
                 <Button
                   type="submit"
                   variant="contained"

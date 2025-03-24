@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -39,7 +39,9 @@ import {
   ListItemText,
   ListItemIcon,
   Tab,
-  Tabs
+  Tabs,
+  FormHelperText,
+  Avatar
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -66,7 +68,11 @@ import {
   Chair as FurnitureIcon,
   LocalBar as BarServiceIcon,
   Security as SecurityIcon,
-  LocationOn as LocationIcon
+  LocationOn as LocationIcon,
+  Delete as DeleteIcon,
+  Headphones as HeadphonesIcon,
+  Edit as EditIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { format, addDays, isAfter, isBefore, isEqual, parseISO, isSameDay, addMonths, subMonths, startOfMonth, getMonth, getYear } from 'date-fns';
 import Layout from '../components/Layout';
@@ -85,6 +91,7 @@ import {
   filterDJsByTravelDistance, 
   filterCaterersByTravelDistance 
 } from '../data/mockData';
+import ProviderDateSelector from '../components/ProviderDateSelector';
 
 // Define steps for the event creation process
 const tabs = [
@@ -144,6 +151,116 @@ const recommendedCombinations: RecommendedCombination[] = [
   }
 ];
 
+// Define a service type for consistent use throughout the app
+type ServiceType = 'venue' | 'dj' | 'catering' | 'entertainment' | 'photography' | 
+  'decoration' | 'audioVisual' | 'furniture' | 'barService' | 'security';
+
+// Define a proper ServiceProvider interface for type consistency
+interface ServiceProvider {
+  id: string;
+  name: string;
+  availability: string[];
+  description?: string;
+  price?: number;
+  rating?: number;
+  capacity?: number;
+  travelDistance?: number;
+  [key: string]: any; // For any additional properties
+}
+
+// Custom venue interface for user-created venues
+interface CustomVenue {
+  name: string;
+  location: string;
+  description: string;
+  capacity: number;
+  images: string[]; // URLs of uploaded images
+}
+
+// Custom DJ interface for user-provided DJs
+interface CustomDJ {
+  name: string;
+  genres: string[];
+  experience: number;
+  description: string;
+  contactInfo: string;
+  image: string; // URL of uploaded image
+}
+
+// Custom catering interface for user-provided catering services
+interface CustomCatering {
+  name: string;
+  cuisineTypes: string[];
+  specialDiets: string[];
+  pricePerPerson: number;
+  description: string;
+  contactInfo: string;
+  image: string; // URL of uploaded image
+}
+
+// Custom entertainment interface for user-provided entertainment
+interface CustomEntertainment {
+  name: string;
+  description: string;
+  image: string; // URL of uploaded image
+}
+
+// Custom photography interface for user-provided photography
+interface CustomPhotography {
+  name: string;
+  description: string;
+  image: string; // URL of uploaded image
+}
+
+// Custom decoration interface for user-provided decoration
+interface CustomDecoration {
+  name: string;
+  description: string;
+  image: string; // URL of uploaded image
+}
+
+// Custom audio/visual interface for user-provided audio/visual services
+interface CustomAudioVisual {
+  name: string;
+  description: string;
+  image: string; // URL of uploaded image
+}
+
+// Custom furniture interface for user-provided furniture
+interface CustomFurniture {
+  name: string;
+  description: string;
+  image: string; // URL of uploaded image
+}
+
+// Custom bar service interface for user-provided bar service
+interface CustomBarService {
+  name: string;
+  description: string;
+  image: string; // URL of uploaded image
+}
+
+// Custom security interface for user-provided security
+interface CustomSecurity {
+  name: string;
+  description: string;
+  image: string; // URL of uploaded image
+}
+
+// Define a mapping of service types to their field names for consistent reuse
+const serviceTypeToFieldMap: Record<ServiceType, string> = {
+  'venue': 'venueId',
+  'dj': 'djId',
+  'catering': 'cateringId',
+  'entertainment': 'entertainmentId',
+  'photography': 'photographyId',
+  'decoration': 'decorationId',
+  'audioVisual': 'audioVisualId',
+  'furniture': 'furnitureId',
+  'barService': 'barServiceId',
+  'security': 'securityId',
+};
+
 const CreateEventPage: React.FC = () => {
   const navigate = useNavigate();
   // Replace activeStep with activeTab
@@ -157,7 +274,7 @@ const CreateEventPage: React.FC = () => {
   
   // Define service categories
   const serviceCategories = [
-    { id: 'venue', label: 'Venue', icon: <LocationIcon />, required: false },
+    { id: 'venue', label: 'Venue', icon: <LocationIcon />, required: true },
     { id: 'dj', label: 'DJ', icon: <MusicIcon />, required: false },
     { id: 'catering', label: 'Catering', icon: <RestaurantIcon />, required: false },
     { id: 'entertainment', label: 'Entertainment', icon: <EntertainmentIcon />, required: false },
@@ -187,15 +304,84 @@ const CreateEventPage: React.FC = () => {
     isMultiSelect: false,
     isPublic: false,
     venueId: '',
+    useCustomVenue: false,
+    customVenue: {
+      name: '',
+      location: '',
+      description: '',
+      capacity: 50,
+      images: [] as string[]
+    },
     djId: '',
+    useCustomDJ: false,
+    customDJ: {
+      name: '',
+      genres: [] as string[],
+      experience: 0,
+      description: '',
+      contactInfo: '',
+      image: ''
+    },
     cateringId: '',
+    useCustomCatering: false,
+    customCatering: {
+      name: '',
+      cuisineTypes: [] as string[],
+      specialDiets: [] as string[],
+      pricePerPerson: 25,
+      description: '',
+      contactInfo: '',
+      image: ''
+    },
     entertainmentId: '',
+    useCustomEntertainment: false,
+    customEntertainment: {
+      name: '',
+      description: '',
+      image: ''
+    },
     photographyId: '',
+    useCustomPhotography: false,
+    customPhotography: {
+      name: '',
+      description: '',
+      image: ''
+    },
     decorationId: '',
+    useCustomDecoration: false,
+    customDecoration: {
+      name: '',
+      description: '',
+      image: ''
+    },
     audioVisualId: '',
+    useCustomAudioVisual: false,
+    customAudioVisual: {
+      name: '',
+      description: '',
+      image: ''
+    },
     furnitureId: '',
+    useCustomFurniture: false,
+    customFurniture: {
+      name: '',
+      description: '',
+      image: ''
+    },
     barServiceId: '',
+    useCustomBarService: false,
+    customBarService: {
+      name: '',
+      description: '',
+      image: ''
+    },
     securityId: '',
+    useCustomSecurity: false,
+    customSecurity: {
+      name: '',
+      description: '',
+      image: ''
+    },
     attendees: 50,
   });
   
@@ -275,6 +461,24 @@ const CreateEventPage: React.FC = () => {
   
   // Add state for calendar navigation
   const [calendarDate, setCalendarDate] = useState(new Date());
+  
+  // New state variables for the enhanced date selection flow
+  const [isSelectingProviderDates, setIsSelectingProviderDates] = useState(false);
+  const [currentSelectingProvider, setCurrentSelectingProvider] = useState<ServiceProvider | null>(null);
+  const [currentSelectingProviderType, setCurrentSelectingProviderType] = useState<ServiceType | null>(null);
+  const [providerSpecificDates, setProviderSpecificDates] = useState<{
+    [providerId: string]: {
+      type: ServiceType;
+      date?: Date | null;
+      dates?: Date[];
+    }
+  }>({});
+  const [tempSelectedDate, setTempSelectedDate] = useState<Date | null>(null);
+  const [tempSelectedDates, setTempSelectedDates] = useState<Date[]>([]);
+  const [availableDatesForDisplay, setAvailableDatesForDisplay] = useState<Date[]>([]);
+  
+  // State for managing provider date selection
+  // const [providerSelectorMultiSelect, setProviderSelectorMultiSelect] = useState(false);
   
   // Load saved draft if available
   useEffect(() => {
@@ -357,368 +561,138 @@ const CreateEventPage: React.FC = () => {
     if (eventData.isMultiDay && eventData.dateRange.start && eventData.dateRange.end) {
       // Filter services based on date range
       filterServicesForDateRange(eventData.dateRange.start, eventData.dateRange.end);
-    } else if (!eventData.isMultiDay && eventData.date) {
+    } else if (eventData.isMultiSelect && eventData.selectedDates.length > 0) {
+      // Filter services based on multiple selected dates
+      filterServicesForSelectedDates(eventData.selectedDates);
+    } else if (!eventData.isMultiDay && !eventData.isMultiSelect && eventData.date) {
       // Filter services based on single date
       filterServicesForSingleDate(eventData.date);
     }
-  }, [eventData.date, eventData.dateRange.start, eventData.dateRange.end, eventData.isMultiDay, 
-      venueFilters, djFilters, cateringFilters]);
+  }, [
+    eventData.date, 
+    eventData.dateRange.start, 
+    eventData.dateRange.end, 
+    eventData.isMultiDay,
+    eventData.isMultiSelect,
+    eventData.selectedDates,
+    venueFilters, 
+    djFilters, 
+    cateringFilters
+  ]);
   
-  // Filter services for a single date
+  // Filter services based on the selected date
   const filterServicesForSingleDate = (date: Date) => {
+    if (!date) return;
+    
     const dateString = format(date, 'yyyy-MM-dd');
     
-    // Filter venues
-    let filteredVenues = venues.filter(venue => 
-      venue.availability.includes(dateString)
-    );
+    // Filter venues based on the selected date
+    const filteredVenues = venues.filter(venue => {
+      // Check if this venue is available on the selected date
+      return venue.availability.includes(dateString);
+    });
     
-    // Apply venue filters
-    if (venueFilters.types.length > 0) {
-      filteredVenues = filteredVenues.filter(venue => 
-        venueFilters.types.includes(venue.type)
-      );
+    // Only update if there's a change to avoid unnecessary re-renders
+    if (JSON.stringify(filteredVenues) !== JSON.stringify(availableVenues)) {
+      setAvailableVenues(filteredVenues);
     }
     
-    if (venueFilters.styles.length > 0) {
-      filteredVenues = filteredVenues.filter(venue => 
-        venue.style.some(style => venueFilters.styles.includes(style))
-      );
-    }
-    
-    filteredVenues = filteredVenues.filter(venue => venue.price <= venueFilters.maxPrice);
-    
+    // Similarly filter other service types
     // Filter DJs
-    let filteredDJs = djs.filter(dj => 
-      dj.availability.includes(dateString)
-    );
-    
-    // Apply DJ filters
-    if (djFilters.genres.length > 0) {
-      filteredDJs = filteredDJs.filter(dj => 
-        dj.genres.some(genre => djFilters.genres.includes(genre))
-      );
-    }
-    
-    filteredDJs = filteredDJs.filter(dj => dj.price <= djFilters.maxPrice);
+    const filteredDJs = djs.filter(dj => dj.availability.includes(dateString));
+    setAvailableDJs(filteredDJs);
     
     // Filter caterers
-    let filteredCaterers = cateringServices.filter(caterer => 
-      caterer.availability.includes(dateString)
-    );
-    
-    // Apply catering filters
-    if (cateringFilters.cuisineTypes.length > 0) {
-      filteredCaterers = filteredCaterers.filter(caterer => 
-        caterer.cuisineType.some(cuisine => cateringFilters.cuisineTypes.includes(cuisine))
-      );
-    }
-    
-    filteredCaterers = filteredCaterers.filter(caterer => caterer.price <= cateringFilters.maxPrice);
+    const filteredCaterers = cateringServices.filter(caterer => caterer.availability.includes(dateString));
+    setAvailableCaterers(filteredCaterers);
     
     // Filter entertainment
-    let filteredEntertainment = entertainment.filter(item => 
-      item.availability.includes(dateString)
-    );
-    
-    // Apply entertainment filters
-    if (entertainmentFilters.types.length > 0) {
-      filteredEntertainment = filteredEntertainment.filter(item => 
-        item.type.some(type => entertainmentFilters.types.includes(type))
-      );
-    }
-    
-    filteredEntertainment = filteredEntertainment.filter(item => item.price <= entertainmentFilters.maxPrice);
+    const filteredEntertainment = entertainment.filter(item => item.availability.includes(dateString));
+    setAvailableEntertainment(filteredEntertainment);
     
     // Filter photography
-    let filteredPhotography = photography.filter(item => 
-      item.availability.includes(dateString)
-    );
-    
-    // Apply photography filters
-    if (photographyFilters.types.length > 0) {
-      filteredPhotography = filteredPhotography.filter(item => 
-        item.type.some(type => photographyFilters.types.includes(type))
-      );
-    }
-    
-    if (photographyFilters.styles.length > 0) {
-      filteredPhotography = filteredPhotography.filter(item => 
-        item.style.some(style => photographyFilters.styles.includes(style))
-      );
-    }
-    
-    filteredPhotography = filteredPhotography.filter(item => item.price <= photographyFilters.maxPrice);
+    const filteredPhotography = photography.filter(item => item.availability.includes(dateString));
+    setAvailablePhotography(filteredPhotography);
     
     // Filter decoration
-    let filteredDecoration = decoration.filter(item => 
-      item.availability.includes(dateString)
-    );
+    const filteredDecoration = decoration.filter(item => item.availability.includes(dateString));
+    setAvailableDecoration(filteredDecoration);
     
-    // Apply decoration filters
-    if (decorationFilters.types.length > 0) {
-      filteredDecoration = filteredDecoration.filter(item => 
-        item.type.some(type => decorationFilters.types.includes(type))
-      );
-    }
-    
-    if (decorationFilters.styles.length > 0) {
-      filteredDecoration = filteredDecoration.filter(item => 
-        item.style.some(style => decorationFilters.styles.includes(style))
-      );
-    }
-    
-    filteredDecoration = filteredDecoration.filter(item => item.price <= decorationFilters.maxPrice);
-    
-    // Filter audio visual
-    let filteredAudioVisual = audioVisual.filter(item => 
-      item.availability.includes(dateString)
-    );
-    
-    // Apply audio visual filters
-    if (audioVisualFilters.equipmentTypes.length > 0) {
-      filteredAudioVisual = filteredAudioVisual.filter(item => 
-        item.equipmentTypes.some(type => audioVisualFilters.equipmentTypes.includes(type))
-      );
-    }
-    
-    filteredAudioVisual = filteredAudioVisual.filter(item => item.price <= audioVisualFilters.maxPrice);
+    // Filter audioVisual
+    const filteredAudioVisual = audioVisual.filter(item => item.availability.includes(dateString));
+    setAvailableAudioVisual(filteredAudioVisual);
     
     // Filter furniture
-    let filteredFurniture = furniture.filter(item => 
-      item.availability.includes(dateString)
-    );
+    const filteredFurniture = furniture.filter(item => item.availability.includes(dateString));
+    setAvailableFurniture(filteredFurniture);
     
-    // Apply furniture filters
-    if (furnitureFilters.itemTypes.length > 0) {
-      filteredFurniture = filteredFurniture.filter(item => 
-        item.itemTypes.some(type => furnitureFilters.itemTypes.includes(type))
-      );
-    }
-    
-    if (furnitureFilters.styles.length > 0) {
-      filteredFurniture = filteredFurniture.filter(item => 
-        item.style.some(style => furnitureFilters.styles.includes(style))
-      );
-    }
-    
-    filteredFurniture = filteredFurniture.filter(item => item.price <= furnitureFilters.maxPrice);
-    
-    // Filter bar services
-    let filteredBarServices = barServices.filter(item => 
-      item.availability.includes(dateString)
-    );
-    
-    // Apply bar service filters
-    if (barServiceFilters.serviceTypes.length > 0) {
-      filteredBarServices = filteredBarServices.filter(item => 
-        item.serviceTypes.some(type => barServiceFilters.serviceTypes.includes(type))
-      );
-    }
-    
-    filteredBarServices = filteredBarServices.filter(item => item.price <= barServiceFilters.maxPrice);
+    // Filter barServices
+    const filteredBarServices = barServices.filter(item => item.availability.includes(dateString));
+    setAvailableBarServices(filteredBarServices);
     
     // Filter security
-    let filteredSecurity = security.filter(item => 
-      item.availability.includes(dateString)
-    );
-    
-    // Apply security filters
-    if (securityFilters.serviceTypes.length > 0) {
-      filteredSecurity = filteredSecurity.filter(item => 
-        item.serviceTypes.some(type => securityFilters.serviceTypes.includes(type))
-      );
-    }
-    
-    filteredSecurity = filteredSecurity.filter(item => item.price <= securityFilters.maxPrice);
-    
-    // Update available services
-    setAvailableVenues(filteredVenues);
-    setAvailableDJs(filteredDJs);
-    setAvailableCaterers(filteredCaterers);
-    setAvailableEntertainment(filteredEntertainment);
-    setAvailablePhotography(filteredPhotography);
-    setAvailableDecoration(filteredDecoration);
-    setAvailableAudioVisual(filteredAudioVisual);
-    setAvailableFurniture(filteredFurniture);
-    setAvailableBarServices(filteredBarServices);
+    const filteredSecurity = security.filter(item => item.availability.includes(dateString));
     setAvailableSecurity(filteredSecurity);
   };
   
-  // Filter services for a date range
+  // Filter services based on selected date range
   const filterServicesForDateRange = (startDate: Date, endDate: Date) => {
-    // Generate array of dates in the range
-    const dateRange: string[] = [];
-    let currentDate = startDate;
+    if (!startDate || !endDate) return;
     
-    while (isBefore(currentDate, endDate) || isEqual(currentDate, endDate)) {
-      dateRange.push(format(currentDate, 'yyyy-MM-dd'));
-      currentDate = addDays(currentDate, 1);
-    }
+    // Convert all dates in the range to strings in the format 'yyyy-MM-dd'
+    const dateStrings = getDatesInRange(startDate, endDate);
     
-    // Filter venues available for ANY date in the range (not ALL dates)
-    let filteredVenues = venues.filter(venue => 
-      dateRange.some(date => venue.availability.includes(date))
+    // Filter venues that have at least one available date in the selected range
+    const filteredVenues = venues.filter(venue => {
+      // Check if this venue has at least one available date in the range
+      const hasAvailableDate = venue.availability.some(date => dateStrings.includes(date));
+      return hasAvailableDate;
+    });
+    
+    // Filter DJs
+    const filteredDJs = djs.filter(dj => 
+      dj.availability.some(date => dateStrings.includes(date))
     );
     
-    // Apply venue filters
-    if (venueFilters.types.length > 0) {
-      filteredVenues = filteredVenues.filter(venue => 
-        venueFilters.types.includes(venue.type)
-      );
-    }
-    
-    if (venueFilters.styles.length > 0) {
-      filteredVenues = filteredVenues.filter(venue => 
-        venue.style.some(style => venueFilters.styles.includes(style))
-      );
-    }
-    
-    filteredVenues = filteredVenues.filter(venue => venue.price <= venueFilters.maxPrice);
-    
-    // Filter DJs available for ANY date in the range
-    let filteredDJs = djs.filter(dj => 
-      dateRange.some(date => dj.availability.includes(date))
+    // Filter caterers
+    const filteredCaterers = cateringServices.filter(caterer => 
+      caterer.availability.some(date => dateStrings.includes(date))
     );
     
-    // Apply DJ filters
-    if (djFilters.genres.length > 0) {
-      filteredDJs = filteredDJs.filter(dj => 
-        dj.genres.some(genre => djFilters.genres.includes(genre))
-      );
-    }
-    
-    filteredDJs = filteredDJs.filter(dj => dj.price <= djFilters.maxPrice);
-    
-    // Filter caterers available for ANY date in the range
-    let filteredCaterers = cateringServices.filter(caterer => 
-      dateRange.some(date => caterer.availability.includes(date))
+    // Filter entertainment
+    const filteredEntertainment = entertainment.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
     );
     
-    // Apply catering filters
-    if (cateringFilters.cuisineTypes.length > 0) {
-      filteredCaterers = filteredCaterers.filter(caterer => 
-        caterer.cuisineType.some(cuisine => cateringFilters.cuisineTypes.includes(cuisine))
-      );
-    }
-    
-    filteredCaterers = filteredCaterers.filter(caterer => caterer.price <= cateringFilters.maxPrice);
-    
-    // Filter entertainment available for ANY date in the range
-    let filteredEntertainment = entertainment.filter(item => 
-      dateRange.some(date => item.availability.includes(date))
+    // Filter photography
+    const filteredPhotography = photography.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
     );
     
-    // Apply entertainment filters
-    if (entertainmentFilters.types.length > 0) {
-      filteredEntertainment = filteredEntertainment.filter(item => 
-        item.type.some(type => entertainmentFilters.types.includes(type))
-      );
-    }
-    
-    filteredEntertainment = filteredEntertainment.filter(item => item.price <= entertainmentFilters.maxPrice);
-    
-    // Filter photography available for ANY date in the range
-    let filteredPhotography = photography.filter(item => 
-      dateRange.some(date => item.availability.includes(date))
+    // Filter decoration
+    const filteredDecoration = decoration.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
     );
     
-    // Apply photography filters
-    if (photographyFilters.types.length > 0) {
-      filteredPhotography = filteredPhotography.filter(item => 
-        item.type.some(type => photographyFilters.types.includes(type))
-      );
-    }
-    
-    if (photographyFilters.styles.length > 0) {
-      filteredPhotography = filteredPhotography.filter(item => 
-        item.style.some(style => photographyFilters.styles.includes(style))
-      );
-    }
-    
-    filteredPhotography = filteredPhotography.filter(item => item.price <= photographyFilters.maxPrice);
-    
-    // Filter decoration available for ANY date in the range
-    let filteredDecoration = decoration.filter(item => 
-      dateRange.some(date => item.availability.includes(date))
+    // Filter audioVisual
+    const filteredAudioVisual = audioVisual.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
     );
     
-    // Apply decoration filters
-    if (decorationFilters.types.length > 0) {
-      filteredDecoration = filteredDecoration.filter(item => 
-        item.type.some(type => decorationFilters.types.includes(type))
-      );
-    }
-    
-    if (decorationFilters.styles.length > 0) {
-      filteredDecoration = filteredDecoration.filter(item => 
-        item.style.some(style => decorationFilters.styles.includes(style))
-      );
-    }
-    
-    filteredDecoration = filteredDecoration.filter(item => item.price <= decorationFilters.maxPrice);
-    
-    // Filter audio visual available for ANY date in the range
-    let filteredAudioVisual = audioVisual.filter(item => 
-      dateRange.some(date => item.availability.includes(date))
+    // Filter furniture
+    const filteredFurniture = furniture.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
     );
     
-    // Apply audio visual filters
-    if (audioVisualFilters.equipmentTypes.length > 0) {
-      filteredAudioVisual = filteredAudioVisual.filter(item => 
-        item.equipmentTypes.some(type => audioVisualFilters.equipmentTypes.includes(type))
-      );
-    }
-    
-    filteredAudioVisual = filteredAudioVisual.filter(item => item.price <= audioVisualFilters.maxPrice);
-    
-    // Filter furniture available for ANY date in the range
-    let filteredFurniture = furniture.filter(item => 
-      dateRange.some(date => item.availability.includes(date))
+    // Filter barServices
+    const filteredBarServices = barServices.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
     );
     
-    // Apply furniture filters
-    if (furnitureFilters.itemTypes.length > 0) {
-      filteredFurniture = filteredFurniture.filter(item => 
-        item.itemTypes.some(type => furnitureFilters.itemTypes.includes(type))
-      );
-    }
-    
-    if (furnitureFilters.styles.length > 0) {
-      filteredFurniture = filteredFurniture.filter(item => 
-        item.style.some(style => furnitureFilters.styles.includes(style))
-      );
-    }
-    
-    filteredFurniture = filteredFurniture.filter(item => item.price <= furnitureFilters.maxPrice);
-    
-    // Filter bar services available for ANY date in the range
-    let filteredBarServices = barServices.filter(item => 
-      dateRange.some(date => item.availability.includes(date))
+    // Filter security
+    const filteredSecurity = security.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
     );
-    
-    // Apply bar service filters
-    if (barServiceFilters.serviceTypes.length > 0) {
-      filteredBarServices = filteredBarServices.filter(item => 
-        item.serviceTypes.some(type => barServiceFilters.serviceTypes.includes(type))
-      );
-    }
-    
-    filteredBarServices = filteredBarServices.filter(item => item.price <= barServiceFilters.maxPrice);
-    
-    // Filter security available for ANY date in the range
-    let filteredSecurity = security.filter(item => 
-      dateRange.some(date => item.availability.includes(date))
-    );
-    
-    // Apply security filters
-    if (securityFilters.serviceTypes.length > 0) {
-      filteredSecurity = filteredSecurity.filter(item => 
-        item.serviceTypes.some(type => securityFilters.serviceTypes.includes(type))
-      );
-    }
-    
-    filteredSecurity = filteredSecurity.filter(item => item.price <= securityFilters.maxPrice);
     
     // Update available services
     setAvailableVenues(filteredVenues);
@@ -731,6 +705,312 @@ const CreateEventPage: React.FC = () => {
     setAvailableFurniture(filteredFurniture);
     setAvailableBarServices(filteredBarServices);
     setAvailableSecurity(filteredSecurity);
+
+    // Clear any selected services that are no longer available
+    const updatedEventData = { ...eventData };
+    let hasChanges = false;
+
+    // Check if selected venue is still available
+    if (eventData.venueId && !filteredVenues.some(venue => venue.id === eventData.venueId)) {
+      updatedEventData.venueId = '';
+      hasChanges = true;
+    }
+
+    // Check if selected DJ is still available
+    if (eventData.djId && !filteredDJs.some(dj => dj.id === eventData.djId)) {
+      updatedEventData.djId = '';
+      hasChanges = true;
+    }
+
+    // Check if selected catering is still available
+    if (eventData.cateringId && !filteredCaterers.some(caterer => caterer.id === eventData.cateringId)) {
+      updatedEventData.cateringId = '';
+      hasChanges = true;
+    }
+
+    // Check other services
+    if (eventData.entertainmentId && !filteredEntertainment.some(item => item.id === eventData.entertainmentId)) {
+      updatedEventData.entertainmentId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.photographyId && !filteredPhotography.some(item => item.id === eventData.photographyId)) {
+      updatedEventData.photographyId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.decorationId && !filteredDecoration.some(item => item.id === eventData.decorationId)) {
+      updatedEventData.decorationId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.audioVisualId && !filteredAudioVisual.some(item => item.id === eventData.audioVisualId)) {
+      updatedEventData.audioVisualId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.furnitureId && !filteredFurniture.some(item => item.id === eventData.furnitureId)) {
+      updatedEventData.furnitureId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.barServiceId && !filteredBarServices.some(item => item.id === eventData.barServiceId)) {
+      updatedEventData.barServiceId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.securityId && !filteredSecurity.some(item => item.id === eventData.securityId)) {
+      updatedEventData.securityId = '';
+      hasChanges = true;
+    }
+
+    // Update event data if changes were made
+    if (hasChanges) {
+      setEventData(updatedEventData);
+      
+      // Also clear any provider-specific dates for services that are no longer available
+      const updatedProviderSpecificDates = { ...providerSpecificDates };
+      let providerDatesChanged = false;
+
+      Object.keys(providerSpecificDates).forEach(providerId => {
+        const provider = updatedProviderSpecificDates[providerId];
+        
+        // Check if this provider is still available based on its type
+        let isAvailable = false;
+        switch (provider.type) {
+          case 'venue':
+            isAvailable = filteredVenues.some(v => v.id === providerId);
+            break;
+          case 'dj':
+            isAvailable = filteredDJs.some(d => d.id === providerId);
+            break;
+          case 'catering':
+            isAvailable = filteredCaterers.some(c => c.id === providerId);
+            break;
+          case 'entertainment':
+            isAvailable = filteredEntertainment.some(e => e.id === providerId);
+            break;
+          case 'photography':
+            isAvailable = filteredPhotography.some(p => p.id === providerId);
+            break;
+          case 'decoration':
+            isAvailable = filteredDecoration.some(d => d.id === providerId);
+            break;
+          case 'audioVisual':
+            isAvailable = filteredAudioVisual.some(a => a.id === providerId);
+            break;
+          case 'furniture':
+            isAvailable = filteredFurniture.some(f => f.id === providerId);
+            break;
+          case 'barService':
+            isAvailable = filteredBarServices.some(b => b.id === providerId);
+            break;
+          case 'security':
+            isAvailable = filteredSecurity.some(s => s.id === providerId);
+            break;
+        }
+
+        // Remove provider-specific dates if the provider is no longer available
+        if (!isAvailable) {
+          delete updatedProviderSpecificDates[providerId];
+          providerDatesChanged = true;
+        }
+      });
+
+      // Update provider-specific dates if needed
+      if (providerDatesChanged) {
+        setProviderSpecificDates(updatedProviderSpecificDates);
+      }
+    }
+  };
+  
+  // Filter services based on multiple selected dates
+  const filterServicesForSelectedDates = (selectedDates: Date[]) => {
+    if (!selectedDates.length) return;
+    
+    // Convert all selected dates to string format 'yyyy-MM-dd'
+    const dateStrings = selectedDates.map(date => format(date, 'yyyy-MM-dd'));
+    
+    // Filter venues that have at least one available date among the selected dates
+    const filteredVenues = venues.filter(venue => {
+      // Check if this venue has at least one available date in the selected dates
+      const hasAvailableDate = venue.availability.some(date => dateStrings.includes(date));
+      return hasAvailableDate;
+    });
+    
+    // Filter DJs
+    const filteredDJs = djs.filter(dj => 
+      dj.availability.some(date => dateStrings.includes(date))
+    );
+    
+    // Filter caterers
+    const filteredCaterers = cateringServices.filter(caterer => 
+      caterer.availability.some(date => dateStrings.includes(date))
+    );
+    
+    // Filter entertainment
+    const filteredEntertainment = entertainment.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
+    );
+    
+    // Filter photography
+    const filteredPhotography = photography.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
+    );
+    
+    // Filter decoration
+    const filteredDecoration = decoration.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
+    );
+    
+    // Filter audioVisual
+    const filteredAudioVisual = audioVisual.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
+    );
+    
+    // Filter furniture
+    const filteredFurniture = furniture.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
+    );
+    
+    // Filter barServices
+    const filteredBarServices = barServices.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
+    );
+    
+    // Filter security
+    const filteredSecurity = security.filter(item => 
+      item.availability.some(date => dateStrings.includes(date))
+    );
+    
+    // Update available services
+    setAvailableVenues(filteredVenues);
+    setAvailableDJs(filteredDJs);
+    setAvailableCaterers(filteredCaterers);
+    setAvailableEntertainment(filteredEntertainment);
+    setAvailablePhotography(filteredPhotography);
+    setAvailableDecoration(filteredDecoration);
+    setAvailableAudioVisual(filteredAudioVisual);
+    setAvailableFurniture(filteredFurniture);
+    setAvailableBarServices(filteredBarServices);
+    setAvailableSecurity(filteredSecurity);
+
+    // Clear any selected services that are no longer available
+    const updatedEventData = { ...eventData };
+    let hasChanges = false;
+
+    // Check if selected venue is still available
+    if (eventData.venueId && !filteredVenues.some(venue => venue.id === eventData.venueId)) {
+      updatedEventData.venueId = '';
+      hasChanges = true;
+    }
+
+    // Check if selected DJ is still available
+    if (eventData.djId && !filteredDJs.some(dj => dj.id === eventData.djId)) {
+      updatedEventData.djId = '';
+      hasChanges = true;
+    }
+
+    // Check if selected catering is still available
+    if (eventData.cateringId && !filteredCaterers.some(caterer => caterer.id === eventData.cateringId)) {
+      updatedEventData.cateringId = '';
+      hasChanges = true;
+    }
+
+    // Check other services
+    if (eventData.entertainmentId && !filteredEntertainment.some(item => item.id === eventData.entertainmentId)) {
+      updatedEventData.entertainmentId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.photographyId && !filteredPhotography.some(item => item.id === eventData.photographyId)) {
+      updatedEventData.photographyId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.decorationId && !filteredDecoration.some(item => item.id === eventData.decorationId)) {
+      updatedEventData.decorationId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.audioVisualId && !filteredAudioVisual.some(item => item.id === eventData.audioVisualId)) {
+      updatedEventData.audioVisualId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.furnitureId && !filteredFurniture.some(item => item.id === eventData.furnitureId)) {
+      updatedEventData.furnitureId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.barServiceId && !filteredBarServices.some(item => item.id === eventData.barServiceId)) {
+      updatedEventData.barServiceId = '';
+      hasChanges = true;
+    }
+
+    if (eventData.securityId && !filteredSecurity.some(item => item.id === eventData.securityId)) {
+      updatedEventData.securityId = '';
+      hasChanges = true;
+    }
+
+    // Update event data if changes were made
+    if (hasChanges) {
+      setEventData(updatedEventData);
+      
+      // Also clear any provider-specific dates for services that are no longer available
+      const updatedProviderSpecificDates = { ...providerSpecificDates };
+      let providerDatesChanged = false;
+
+      Object.keys(providerSpecificDates).forEach(providerId => {
+        const provider = updatedProviderSpecificDates[providerId];
+        
+        // Check if this provider is still available based on its type
+        let isAvailable = false;
+        switch (provider.type) {
+          case 'venue':
+            isAvailable = filteredVenues.some(v => v.id === providerId);
+            break;
+          case 'dj':
+            isAvailable = filteredDJs.some(d => d.id === providerId);
+            break;
+          case 'catering':
+            isAvailable = filteredCaterers.some(c => c.id === providerId);
+            break;
+          case 'entertainment':
+            isAvailable = filteredEntertainment.some(e => e.id === providerId);
+            break;
+          case 'photography':
+            isAvailable = filteredPhotography.some(p => p.id === providerId);
+            break;
+          case 'decoration':
+            isAvailable = filteredDecoration.some(d => d.id === providerId);
+            break;
+          case 'audioVisual':
+            isAvailable = filteredAudioVisual.some(a => a.id === providerId);
+            break;
+          case 'furniture':
+            isAvailable = filteredFurniture.some(f => f.id === providerId);
+            break;
+          case 'barService':
+            isAvailable = filteredBarServices.some(b => b.id === providerId);
+            break;
+          case 'security':
+            isAvailable = filteredSecurity.some(s => s.id === providerId);
+            break;
+        }
+
+        // Remove provider-specific dates if the provider is no longer available
+        if (!isAvailable) {
+          delete updatedProviderSpecificDates[providerId];
+          providerDatesChanged = true;
+        }
+      });
+
+      // Update provider-specific dates if needed
+      if (providerDatesChanged) {
+        setProviderSpecificDates(updatedProviderSpecificDates);
+      }
+    }
   };
   
   // Handle tab change
@@ -756,47 +1036,6 @@ const CreateEventPage: React.FC = () => {
         ...eventData,
         isMultiDay: newDateType,
       });
-    }
-  };
-  
-  // Handle service selection
-  const handleServiceSelect = (type: 'venue' | 'dj' | 'catering' | 'entertainment' | 'photography' | 'decoration' | 'audioVisual' | 'furniture' | 'barService' | 'security', id: string) => {
-    const fieldMap = {
-      venue: 'venueId',
-      dj: 'djId',
-      catering: 'cateringId',
-      entertainment: 'entertainmentId',
-      photography: 'photographyId',
-      decoration: 'decorationId',
-      audioVisual: 'audioVisualId',
-      furniture: 'furnitureId',
-      barService: 'barServiceId',
-      security: 'securityId',
-    };
-    
-    handleChange(fieldMap[type], id);
-    
-    // If a venue is selected, filter DJs and caterers based on travel distance
-    if (type === 'venue') {
-      // First filter by date availability
-      let filteredDJs = availableDJs;
-      let filteredCaterers = availableCaterers;
-      
-      // Then filter by travel distance
-      const djsWithinTravelDistance = filterDJsByTravelDistance(id);
-      const caterersWithinTravelDistance = filterCaterersByTravelDistance(id);
-      
-      // Apply both filters
-      filteredDJs = filteredDJs.filter(dj => 
-        djsWithinTravelDistance.some(travelDj => travelDj.id === dj.id)
-      );
-      
-      filteredCaterers = filteredCaterers.filter(caterer => 
-        caterersWithinTravelDistance.some(travelCaterer => travelCaterer.id === caterer.id)
-      );
-      
-      setAvailableDJs(filteredDJs);
-      setAvailableCaterers(filteredCaterers);
     }
   };
   
@@ -883,6 +1122,288 @@ const CreateEventPage: React.FC = () => {
     });
   };
   
+  // Modified service selection handler
+  const handleServiceSelect = (type: ServiceType, id: string) => {
+    // Check if we're in date range or multi-select mode
+    if (
+      // Date range mode with valid range
+      (eventData.isMultiDay && eventData.dateRange.start && eventData.dateRange.end) || 
+      // OR multi-select mode with selected dates
+      (eventData.isMultiSelect && eventData.selectedDates.length > 0)
+    ) {
+      
+      // Find the provider object
+      let provider: ServiceProvider | undefined;
+      switch (type) {
+        case 'venue':
+          provider = availableVenues.find(v => v.id === id);
+          break;
+        case 'dj':
+          provider = availableDJs.find(d => d.id === id);
+          break;
+        case 'catering':
+          provider = availableCaterers.find(c => c.id === id);
+          break;
+        case 'entertainment':
+          provider = availableEntertainment.find(e => e.id === id);
+          break;
+        case 'photography':
+          provider = availablePhotography.find(p => p.id === id);
+          break;
+        case 'decoration':
+          provider = availableDecoration.find(d => d.id === id);
+          break;
+        case 'audioVisual':
+          provider = availableAudioVisual.find(a => a.id === id);
+          break;
+        case 'furniture':
+          provider = availableFurniture.find(f => f.id === id);
+          break;
+        case 'barService':
+          provider = availableBarServices.find(b => b.id === id);
+          break;
+        case 'security':
+          provider = availableSecurity.find(s => s.id === id);
+          break;
+      }
+      
+      if (!provider) {
+        console.error(`Provider not found: ${type} with ID ${id}`);
+        return;
+      }
+      
+      // Get available dates within the selected range - this is a safeguard
+      // even though we already filter the list of services based on availability
+      let availableDatesInRange: string[] = [];
+      
+      if (eventData.isMultiSelect && eventData.selectedDates.length > 0) {
+        // For multi-select mode, check against selectedDates
+        availableDatesInRange = eventData.selectedDates
+          .map(date => format(date, 'yyyy-MM-dd'))
+          .filter(dateStr => provider!.availability.includes(dateStr));
+      } else if (eventData.isMultiDay && eventData.dateRange.start && eventData.dateRange.end) {
+        // For date range mode, check against the date range
+        availableDatesInRange = getDatesInRange(
+          eventData.dateRange.start, 
+          eventData.dateRange.end
+        ).filter(dateStr => provider!.availability.includes(dateStr));
+      }
+      
+      if (availableDatesInRange.length === 0) {
+        // If no dates are available, show a helpful message and don't proceed with date selection
+        setSnackbarMessage(`${provider.name} has no available dates within your selected ${eventData.isMultiDay ? 'date range' : 'dates'}. Please choose another ${type}.`);
+        setSnackbarOpen(true);
+        return;
+      }
+      
+      // If there are available dates, proceed with the date selection
+      setCurrentSelectingProvider(provider);
+      setCurrentSelectingProviderType(type);
+      setIsSelectingProviderDates(true);
+      
+      // Convert available dates to Date objects for the date selector
+      const availableDatesAsDateObjects = availableDatesInRange.map(dateStr => new Date(dateStr));
+      
+      // Log the available dates for debugging
+      console.log(`Available dates for ${type} ${provider.name}:`, availableDatesInRange);
+      
+      // Pass these dates to the date selector component
+      setAvailableDatesForDisplay(availableDatesAsDateObjects);
+      
+      // Initialize or retrieve existing selected dates for this provider
+      const existingData = providerSpecificDates[id];
+      if (existingData) {
+        if (eventData.isMultiSelect) {
+          setTempSelectedDates(existingData.dates || []);
+        } else {
+          setTempSelectedDate(existingData.date || null);
+        }
+      } else {
+        // Use the first available date as default if in single date mode and no existing selection
+        if (!eventData.isMultiSelect && availableDatesInRange.length > 0) {
+          const firstAvailableDate = new Date(availableDatesInRange[0]);
+          setTempSelectedDate(firstAvailableDate);
+          setTempSelectedDates([firstAvailableDate]);
+        } else {
+          setTempSelectedDate(null);
+          setTempSelectedDates([]);
+        }
+      }
+    } else {
+      // If not in multi-date mode, just set the provider directly
+      handleChange(serviceTypeToFieldMap[type], id);
+      
+      // If a venue is selected, filter DJs and caterers based on travel distance
+      if (type === 'venue') {
+        // First filter by date availability
+        let filteredDJs = availableDJs;
+        let filteredCaterers = availableCaterers;
+        
+        // Then filter by travel distance
+        const djsWithinTravelDistance = filterDJsByTravelDistance(id);
+        const caterersWithinTravelDistance = filterCaterersByTravelDistance(id);
+        
+        // Apply both filters
+        filteredDJs = filteredDJs.filter(dj => 
+          djsWithinTravelDistance.some(travelDj => travelDj.id === dj.id)
+        );
+        
+        filteredCaterers = filteredCaterers.filter(caterer => 
+          caterersWithinTravelDistance.some(travelCaterer => travelCaterer.id === caterer.id)
+        );
+        
+        setAvailableDJs(filteredDJs);
+        setAvailableCaterers(filteredCaterers);
+      }
+    }
+  };
+  
+  // Helper function to get all dates in range as strings in 'yyyy-MM-dd' format
+  const getDatesInRange = (startDate: Date | null, endDate: Date | null): string[] => {
+    if (!startDate || !endDate) return [];
+    
+    const dateStrings: string[] = [];
+    let currentDate = new Date(startDate);
+    const endDateCopy = new Date(endDate);
+    
+    while (currentDate <= endDateCopy) {
+      dateStrings.push(format(currentDate, 'yyyy-MM-dd'));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return dateStrings;
+  };
+  
+  // Helper function to get the field name for provider type
+  const getFieldForType = (type: string): string => {
+    const fieldMap: Record<string, string> = {
+      'venue': 'venueId',
+      'dj': 'djId',
+      'catering': 'cateringId',
+      'entertainment': 'entertainmentId',
+      'photography': 'photographyId',
+      'decoration': 'decorationId',
+      'audioVisual': 'audioVisualId',
+      'furniture': 'furnitureId',
+      'barService': 'barServiceId',
+      'security': 'securityId',
+    };
+    
+    return fieldMap[type] || '';
+  };
+  
+  // Helper function to check if provider has any available dates in the selected range
+  const checkProviderAvailability = (provider: ServiceProvider | undefined, startDate: Date | null, endDate: Date | null): boolean => {
+    if (!startDate || !endDate || !provider || !provider.availability) return false;
+    
+    // Get all dates in the range
+    const dateStrings = getDatesInRange(startDate, endDate);
+    
+    // Check if provider has at least one available date in the range
+    return provider.availability.some((date: string) => dateStrings.includes(date));
+  };
+  
+  // Handler for selecting a date for a specific provider - simple implementation
+  const handleProviderDateSelect = (date: Date) => {
+    // Get the date string for comparison
+    const dateString = format(date, 'yyyy-MM-dd');
+    
+    if (eventData.isMultiSelect) {
+      // For multiple date selection
+      const dateExists = tempSelectedDates.some(d => format(d, 'yyyy-MM-dd') === dateString);
+      
+      if (dateExists) {
+        // Remove the date if it's already selected
+        const updatedDates = tempSelectedDates.filter(d => format(d, 'yyyy-MM-dd') !== dateString);
+        setTempSelectedDates(updatedDates);
+        
+        // If this was the only date or we removed the current tempSelectedDate,
+        // set the single selection to the first remaining date or null
+        if (updatedDates.length === 0) {
+          setTempSelectedDate(null);
+        } else if (tempSelectedDate && format(tempSelectedDate, 'yyyy-MM-dd') === dateString) {
+          setTempSelectedDate(updatedDates[0]);
+        }
+      } else {
+        // Add the date if it's not already selected
+        const updatedDates = [...tempSelectedDates, date];
+        setTempSelectedDates(updatedDates);
+        
+        // Also update single selection for consistency
+        setTempSelectedDate(date);
+      }
+    } else {
+      // Single date selection - just replace both states
+      setTempSelectedDate(date);
+      setTempSelectedDates([date]);
+    }
+  };
+  
+  // Handler for confirming provider-specific date selection
+  const handleConfirmProviderDateSelection = () => {
+    if (!currentSelectingProvider || !currentSelectingProviderType) return;
+    
+    // Save the selected dates for this provider
+    setProviderSpecificDates({
+      ...providerSpecificDates,
+      [currentSelectingProvider.id]: {
+        type: currentSelectingProviderType,
+        date: tempSelectedDate,
+        dates: tempSelectedDates
+      }
+    });
+    
+    // Set the provider ID in the eventData
+    handleChange(serviceTypeToFieldMap[currentSelectingProviderType], currentSelectingProvider.id);
+    
+    // If a venue is selected, filter DJs and caterers based on travel distance and selected dates
+    if (currentSelectingProviderType === 'venue') {
+      // First filter by date availability
+      let filteredDJs = availableDJs;
+      let filteredCaterers = availableCaterers;
+      
+      // Then filter by travel distance
+      const djsWithinTravelDistance = filterDJsByTravelDistance(currentSelectingProvider.id);
+      const caterersWithinTravelDistance = filterCaterersByTravelDistance(currentSelectingProvider.id);
+      
+      // Apply both filters
+      filteredDJs = filteredDJs.filter(dj => 
+        djsWithinTravelDistance.some(travelDj => travelDj.id === dj.id)
+      );
+      
+      filteredCaterers = filteredCaterers.filter(caterer => 
+        caterersWithinTravelDistance.some(travelCaterer => travelCaterer.id === caterer.id)
+      );
+      
+      setAvailableDJs(filteredDJs);
+      setAvailableCaterers(filteredCaterers);
+      
+      // Apply the new cascading filter to prioritize providers available on selected dates
+      if (eventData.dateRange.start && eventData.dateRange.end) {
+        filterForPriorSelections(eventData.dateRange.start, eventData.dateRange.end);
+      }
+    }
+    
+    // Reset the provider date selection state
+    setIsSelectingProviderDates(false);
+    setCurrentSelectingProvider(null);
+    setCurrentSelectingProviderType(null);
+    setTempSelectedDate(null);
+    setTempSelectedDates([]);
+    
+    // Return to the services tab
+    setActiveTab('services');
+  };
+  
+  // Handler for canceling provider-specific date selection
+  const handleCancelProviderDateSelection = () => {
+    setIsSelectingProviderDates(false);
+    setCurrentSelectingProvider(null);
+    setCurrentSelectingProviderType(null);
+    setTempSelectedDate(null);
+    setTempSelectedDates([]);
+  };
+  
   // Navigate to previous month in calendar
   const handlePrevMonth = () => {
     setCalendarDate(prevDate => subMonths(prevDate, 1));
@@ -893,25 +1414,59 @@ const CreateEventPage: React.FC = () => {
     setCalendarDate(prevDate => addMonths(prevDate, 1));
   };
   
-  // Handle form submission
+  // handleSubmit function to validate and submit form
   const handleSubmit = () => {
-    // Prepare the event data
-    const submissionData = {
+    // Check if all required services are selected
+    if (!hasRequiredServices()) {
+      setSnackbarMessage('Please select a venue before proceeding.');
+      setSnackbarOpen(true);
+      return;
+    }
+    
+    // Check if dates are selected
+    if (
+      (!eventData.date && !eventData.isMultiDay && !eventData.isMultiSelect) ||
+      (eventData.isMultiDay && (!eventData.dateRange.start || !eventData.dateRange.end)) ||
+      (eventData.isMultiSelect && eventData.selectedDates.length === 0)
+    ) {
+      setSnackbarMessage('Please select at least one date for your event.');
+      setSnackbarOpen(true);
+      return;
+    }
+    
+    // Create a copy of the event data with formatted dates for the payment page
+    const formattedEventData = {
       ...eventData,
-      // Format dates for submission
-      date: eventData.date ? format(eventData.date, 'yyyy-MM-dd') : null,
+      // Format date if it exists
+      date: eventData.date ? format(eventData.date, 'yyyy-MM-dd\'T\'HH:mm:ss') : null,
+      // Format dateRange if it exists
       dateRange: {
-        start: eventData.dateRange.start ? format(eventData.dateRange.start, 'yyyy-MM-dd') : null,
-        end: eventData.dateRange.end ? format(eventData.dateRange.end, 'yyyy-MM-dd') : null,
+        start: eventData.dateRange.start ? format(eventData.dateRange.start, 'yyyy-MM-dd\'T\'HH:mm:ss') : null,
+        end: eventData.dateRange.end ? format(eventData.dateRange.end, 'yyyy-MM-dd\'T\'HH:mm:ss') : null,
       },
-      selectedDates: eventData.selectedDates.map(date => format(date, 'yyyy-MM-dd'))
+      // Format selectedDates if they exist
+      selectedDates: eventData.selectedDates.map(date => format(date, 'yyyy-MM-dd\'T\'HH:mm:ss')),
+      // Add event name for display in payment page
+      eventName: eventData.name,
     };
     
-    // In a real app, this would send the data to the backend
-    console.log('Event data submitted:', submissionData);
-    
-    // Navigate to the My Events page
-    navigate('/my-events');
+    // Navigate to the payment page with formatted event data
+    navigate('/payment', { 
+      state: { 
+        eventData: formattedEventData,
+        venues: availableVenues,
+        djs: availableDJs,
+        caterings: availableCaterers,
+        entertainment: availableEntertainment,
+        photography: availablePhotography,
+        decoration: availableDecoration,
+        audioVisual: availableAudioVisual,
+        furniture: availableFurniture,
+        barService: availableBarServices,
+        security: availableSecurity,
+        providerSpecificDates
+      } 
+    });
   };
   
   // Apply filters to available services
@@ -1719,12 +2274,42 @@ const CreateEventPage: React.FC = () => {
                             <Box sx={{ ml: 2 }}>
                               <Typography variant="h6">{category.label}</Typography>
                               <Typography variant="body2" color="text.secondary">
-                                {eventData[`${category.id}Id` as keyof typeof eventData] ? 
+                                {category.id === 'venue' && eventData.useCustomVenue ? 
+                                  `Custom: ${eventData.customVenue.name}` : 
+                                  category.id === 'dj' && eventData.useCustomDJ ?
+                                  `Custom: ${eventData.customDJ.name}` :
+                                  category.id === 'catering' && eventData.useCustomCatering ?
+                                  `Custom: ${eventData.customCatering.name}` :
+                                  category.id === 'entertainment' && eventData.useCustomEntertainment ?
+                                  `Custom: ${eventData.customEntertainment.name}` :
+                                  category.id === 'photography' && eventData.useCustomPhotography ?
+                                  `Custom: ${eventData.customPhotography.name}` :
+                                  category.id === 'decoration' && eventData.useCustomDecoration ?
+                                  `Custom: ${eventData.customDecoration.name}` :
+                                  category.id === 'audioVisual' && eventData.useCustomAudioVisual ?
+                                  `Custom: ${eventData.customAudioVisual.name}` :
+                                  category.id === 'furniture' && eventData.useCustomFurniture ?
+                                  `Custom: ${eventData.customFurniture.name}` :
+                                  category.id === 'barService' && eventData.useCustomBarService ?
+                                  `Custom: ${eventData.customBarService.name}` :
+                                  category.id === 'security' && eventData.useCustomSecurity ?
+                                  `Custom: ${eventData.customSecurity.name}` :
+                                  eventData[`${category.id}Id` as keyof typeof eventData] ? 
                                   'Selected' : 
                                   'Not selected'}
                               </Typography>
                             </Box>
-                            {eventData[`${category.id}Id` as keyof typeof eventData] && 
+                            {(eventData[`${category.id}Id` as keyof typeof eventData] || 
+                              (category.id === 'venue' && eventData.useCustomVenue) ||
+                              (category.id === 'dj' && eventData.useCustomDJ) ||
+                              (category.id === 'catering' && eventData.useCustomCatering) ||
+                              (category.id === 'entertainment' && eventData.useCustomEntertainment) ||
+                              (category.id === 'photography' && eventData.useCustomPhotography) ||
+                              (category.id === 'decoration' && eventData.useCustomDecoration) ||
+                              (category.id === 'audioVisual' && eventData.useCustomAudioVisual) ||
+                              (category.id === 'furniture' && eventData.useCustomFurniture) ||
+                              (category.id === 'barService' && eventData.useCustomBarService) ||
+                              (category.id === 'security' && eventData.useCustomSecurity)) && 
                               <CheckIcon color="success" sx={{ ml: 'auto' }} />}
                           </Box>
                         </CardContent>
@@ -1745,6 +2330,42 @@ const CreateEventPage: React.FC = () => {
               Choose a Venue
             </Typography>
             
+            {/* Toggle between existing venues and custom venue */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                Venue Options
+              </Typography>
+              
+              <Box sx={{ mb: 2 }}>
+                <ToggleButtonGroup
+                  value={eventData.useCustomVenue ? 'custom' : 'existing'}
+                  exclusive
+                  onChange={(e, newValue) => {
+                    if (newValue) {
+                      // Clear any existing venue selection when switching modes
+                      setEventData({
+                        ...eventData,
+                        useCustomVenue: newValue === 'custom',
+                        venueId: newValue === 'custom' ? '' : eventData.venueId,
+                      });
+                    }
+                  }}
+                  aria-label="venue selection mode"
+                  fullWidth
+                >
+                  <ToggleButton value="existing" aria-label="select existing venue">
+                    Choose from Listed Venues
+                  </ToggleButton>
+                  <ToggleButton value="custom" aria-label="add custom venue">
+                    Add Your Own Venue
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            </Paper>
+            
+            {/* Show venue filters and listings when "Choose from Listed Venues" is selected */}
+            {!eventData.useCustomVenue && (
+              <>
             <Paper sx={{ p: 3, mb: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="subtitle1" fontWeight="medium">
@@ -1849,26 +2470,272 @@ const CreateEventPage: React.FC = () => {
                 No venues are available for your selected {eventData.isMultiDay ? 'date range' : 'date'} and filters. 
                 Please try different filters or a different {eventData.isMultiDay ? 'range' : 'date'}.
               </Alert>
-            ) : (
+            ) :
             <Grid container spacing={2} sx={{ mt: 1 }}>
-                {availableVenues.map((venue) => (
-                <Grid item xs={12} sm={6} key={venue.id}>
-                  <Card 
-                    sx={{ 
-                      border: eventData.venueId === venue.id ? 2 : 0,
-                      borderColor: 'primary.main',
-                    }}
-                  >
-                      <CardActionArea onClick={() => {
-                        handleServiceSelect('venue', venue.id);
-                        setActiveTab('services');
-                      }}>
-                      <ServiceCard service={venue} type="venue" />
-                    </CardActionArea>
-                  </Card>
-                </Grid>
-              ))}
+                {availableVenues.map((venue) => {
+                  // Check if venue has any available dates in the selected range or dates
+                  let hasAvailableDates = true;
+                  if (eventData.isMultiDay && eventData.dateRange.start && eventData.dateRange.end) {
+                    // For date range, check if any date in the range is available
+                    const dateStrings = getDatesInRange(eventData.dateRange.start, eventData.dateRange.end);
+                    hasAvailableDates = dateStrings.some(dateStr => venue.availability.includes(dateStr));
+                  } else if (eventData.isMultiSelect && eventData.selectedDates.length > 0) {
+                    // For multi-select, check if any selected date is available
+                    hasAvailableDates = eventData.selectedDates.some(date => 
+                      venue.availability.includes(format(date, 'yyyy-MM-dd'))
+                    );
+                  }
+                  
+                  // Skip rendering venues with no available dates
+                  if (!hasAvailableDates) {
+                    return null;
+                  }
+                  
+                  return (
+                    <Grid item xs={12} sm={6} key={venue.id}>
+                      <Card 
+                        sx={{ 
+                          border: eventData.venueId === venue.id ? 2 : 0,
+                          borderColor: 'primary.main',
+                        }}
+                      >
+                        <CardActionArea onClick={() => handleServiceSelect('venue', venue.id)}>
+                          <ServiceCard service={venue} type="venue" />
+                          {/* Add badges for selected dates if applicable */}
+                          {providerSpecificDates[venue.id] && (
+                            <Box sx={{ p: 1, bgcolor: 'primary.light', color: 'white' }}>
+                              <Typography variant="body2">
+                                {eventData.isMultiSelect 
+                                  ? `Selected ${providerSpecificDates[venue.id].dates?.length || 0} date(s)` 
+                                  : `Selected: ${providerSpecificDates[venue.id].date 
+                                      ? format(providerSpecificDates[venue.id].date as Date, 'MMM d, yyyy') 
+                                      : 'None'}`
+                                }
+                              </Typography>
+                            </Box>
+                          )}
+                        </CardActionArea>
+                      </Card>
+                    </Grid>
+                  );
+                }).filter(Boolean)}
             </Grid>
+            }
+              </>
+            )}
+            
+            {/* Show custom venue form when "Add Your Own Venue" is selected */}
+            {eventData.useCustomVenue && (
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                  Enter Your Venue Details
+                </Typography>
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Venue Name"
+                      value={eventData.customVenue.name}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customVenue: {
+                          ...eventData.customVenue,
+                          name: e.target.value
+                        }
+                      })}
+                      margin="normal"
+                      error={!eventData.customVenue.name.trim()}
+                      helperText={!eventData.customVenue.name.trim() ? "Venue name is required" : ""}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Location"
+                      value={eventData.customVenue.location}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customVenue: {
+                          ...eventData.customVenue,
+                          location: e.target.value
+                        }
+                      })}
+                      margin="normal"
+                      placeholder="Full address of the venue"
+                      error={!eventData.customVenue.location.trim()}
+                      helperText={!eventData.customVenue.location.trim() ? "Location is required" : ""}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Capacity"
+                      type="number"
+                      value={eventData.customVenue.capacity}
+                      InputProps={{
+                        inputProps: { min: 1 }
+                      }}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customVenue: {
+                          ...eventData.customVenue,
+                          capacity: parseInt(e.target.value) || 0
+                        }
+                      })}
+                      margin="normal"
+                      error={eventData.customVenue.capacity <= 0}
+                      helperText={eventData.customVenue.capacity <= 0 ? "Capacity must be greater than 0" : ""}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={4}
+                      label="Description"
+                      value={eventData.customVenue.description}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customVenue: {
+                          ...eventData.customVenue,
+                          description: e.target.value
+                        }
+                      })}
+                      margin="normal"
+                      placeholder="Describe your venue, including features, amenities, and any special considerations"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Venue Images
+                    </Typography>
+                    <Box 
+                      sx={{ 
+                        border: '2px dashed', 
+                        borderColor: 'divider', 
+                        p: 3, 
+                        borderRadius: 1,
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          bgcolor: 'action.hover'
+                        }
+                      }}
+                      onClick={() => {
+                        // In a real app, this would open a file dialog
+                        // For this demo, we'll just add a placeholder image
+                        setEventData({
+                          ...eventData,
+                          customVenue: {
+                            ...eventData.customVenue,
+                            images: [...eventData.customVenue.images, 'https://via.placeholder.com/300x200?text=Venue+Image']
+                          }
+                        });
+                      }}
+                    >
+                      <Typography variant="body1" gutterBottom>
+                        Upload Images
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Click to add images of your venue (max 5 images)
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  
+                  {eventData.customVenue.images.length > 0 && (
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
+                        {eventData.customVenue.images.map((image, index) => (
+                          <Box 
+                            key={index}
+                            sx={{ 
+                              position: 'relative',
+                              width: 100,
+                              height: 100,
+                              borderRadius: 1,
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <img 
+                              src={image} 
+                              alt={`Venue image ${index + 1}`} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            <IconButton
+                              size="small"
+                              sx={{ 
+                                position: 'absolute', 
+                                top: 0, 
+                                right: 0, 
+                                bgcolor: 'rgba(0,0,0,0.5)',
+                                color: 'white',
+                                '&:hover': {
+                                  bgcolor: 'rgba(0,0,0,0.7)'
+                                }
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newImages = [...eventData.customVenue.images];
+                                newImages.splice(index, 1);
+                                setEventData({
+                                  ...eventData,
+                                  customVenue: {
+                                    ...eventData.customVenue,
+                                    images: newImages
+                                  }
+                                });
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Grid>
+                  )}
+                  
+                  {/* Add confirmation buttons */}
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          setEventData({
+                            ...eventData,
+                            useCustomVenue: false
+                          });
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        disabled={!eventData.customVenue.name.trim() || !eventData.customVenue.location.trim() || eventData.customVenue.capacity <= 0}
+                        onClick={() => {
+                          // Show confirmation message
+                          setSnackbarMessage('Custom venue has been confirmed!');
+                          setSnackbarOpen(true);
+                          
+                          // Navigate back to services tab
+                          setActiveTab('services');
+                        }}
+                      >
+                        Confirm Venue
+                      </Button>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
             )}
             
             <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3 }}>
@@ -1891,6 +2758,42 @@ const CreateEventPage: React.FC = () => {
               Select a DJ
             </Typography>
             
+            {/* Toggle between existing DJs and custom DJ */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                DJ Options
+              </Typography>
+              
+              <Box sx={{ mb: 2 }}>
+                <ToggleButtonGroup
+                  value={eventData.useCustomDJ ? 'custom' : 'existing'}
+                  exclusive
+                  onChange={(e, newValue) => {
+                    if (newValue) {
+                      // Clear any existing DJ selection when switching modes
+                      setEventData({
+                        ...eventData,
+                        useCustomDJ: newValue === 'custom',
+                        djId: newValue === 'custom' ? '' : eventData.djId,
+                      });
+                    }
+                  }}
+                  aria-label="dj selection mode"
+                  fullWidth
+                >
+                  <ToggleButton value="existing" aria-label="select existing dj">
+                    Choose from Listed DJs
+                  </ToggleButton>
+                  <ToggleButton value="custom" aria-label="add custom dj">
+                    Add Your Own DJ
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            </Paper>
+            
+            {/* Show DJ filters and listings when "Choose from Listed DJs" is selected */}
+            {!eventData.useCustomDJ && (
+              <>
             <Paper sx={{ p: 3, mb: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="subtitle1" fontWeight="medium">
@@ -1974,24 +2877,294 @@ const CreateEventPage: React.FC = () => {
               </Alert>
             ) : (
             <Grid container spacing={2} sx={{ mt: 1 }}>
-                {availableDJs.map((dj) => (
-                <Grid item xs={12} sm={6} key={dj.id}>
-                  <Card 
-                    sx={{ 
-                      border: eventData.djId === dj.id ? 2 : 0,
-                      borderColor: 'primary.main',
-                    }}
-                  >
-                      <CardActionArea onClick={() => {
-                        handleServiceSelect('dj', dj.id);
-                        setActiveTab('services');
-                      }}>
-                      <ServiceCard service={dj} type="dj" />
-                    </CardActionArea>
-                  </Card>
-                </Grid>
-              ))}
+                {availableDJs.map((dj) => {
+                  // Check if DJ has any available dates in the selected range or dates
+                  let hasAvailableDates = true;
+                  if (eventData.isMultiDay && eventData.dateRange.start && eventData.dateRange.end) {
+                    // For date range, check if any date in the range is available
+                    const dateStrings = getDatesInRange(eventData.dateRange.start, eventData.dateRange.end);
+                    hasAvailableDates = dateStrings.some(dateStr => dj.availability.includes(dateStr));
+                  } else if (eventData.isMultiSelect && eventData.selectedDates.length > 0) {
+                    // For multi-select, check if any selected date is available
+                    hasAvailableDates = eventData.selectedDates.some(date => 
+                      dj.availability.includes(format(date, 'yyyy-MM-dd'))
+                    );
+                  }
+                  
+                  // Skip rendering DJs with no available dates
+                  if (!hasAvailableDates) {
+                    return null;
+                  }
+                  
+                  return (
+                    <Grid item xs={12} sm={6} key={dj.id}>
+                      <Card 
+                        sx={{ 
+                          border: eventData.djId === dj.id ? 2 : 0,
+                          borderColor: 'primary.main',
+                        }}
+                      >
+                        <CardActionArea onClick={() => handleServiceSelect('dj', dj.id)}>
+                          <ServiceCard service={dj} type="dj" />
+                          {/* Add badges for selected dates if applicable */}
+                          {providerSpecificDates[dj.id] && (
+                            <Box sx={{ p: 1, bgcolor: 'primary.light', color: 'white' }}>
+                              <Typography variant="body2">
+                                {eventData.isMultiSelect 
+                                  ? `Selected ${providerSpecificDates[dj.id].dates?.length || 0} date(s)` 
+                                  : `Selected: ${providerSpecificDates[dj.id].date 
+                                      ? format(providerSpecificDates[dj.id].date as Date, 'MMM d, yyyy') 
+                                      : 'None'}`
+                                }
+                              </Typography>
+                            </Box>
+                          )}
+                        </CardActionArea>
+                      </Card>
+                    </Grid>
+                  );
+                }).filter(Boolean)}
             </Grid>
+            )}
+              </>
+            )}
+            
+            {/* Show custom DJ form when "Add Your Own DJ" is selected */}
+            {eventData.useCustomDJ && (
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                  Enter Your DJ Details
+                </Typography>
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="DJ Name/Stage Name"
+                      value={eventData.customDJ.name}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customDJ: {
+                          ...eventData.customDJ,
+                          name: e.target.value
+                        }
+                      })}
+                      margin="normal"
+                      error={!eventData.customDJ.name.trim()}
+                      helperText={!eventData.customDJ.name.trim() ? "DJ name is required" : ""}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <FormControl fullWidth margin="normal" required>
+                      <InputLabel id="custom-dj-genres-label">Music Genres</InputLabel>
+                      <Select
+                        labelId="custom-dj-genres-label"
+                        multiple
+                        value={eventData.customDJ.genres}
+                        onChange={(e) => setEventData({
+                          ...eventData,
+                          customDJ: {
+                            ...eventData.customDJ,
+                            genres: e.target.value as string[]
+                          }
+                        })}
+                        renderValue={(selected) => (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {(selected as string[]).map((value) => (
+                              <Chip key={value} label={value} />
+                            ))}
+                          </Box>
+                        )}
+                        error={eventData.customDJ.genres.length === 0}
+                      >
+                        {['House', 'Electronic', 'Pop', 'Hip Hop', 'R&B', 'Top 40', 'Latin', 'Reggaeton', 'Dance', 'Rock', 'Techno', 'Country'].map((genre) => (
+                          <MenuItem key={genre} value={genre}>
+                            {genre}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {eventData.customDJ.genres.length === 0 && (
+                        <FormHelperText error>Please select at least one genre</FormHelperText>
+                      )}
+                    </FormControl>
+                  </Grid>
+                  
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Years of Experience"
+                      type="number"
+                      value={eventData.customDJ.experience}
+                      InputProps={{
+                        inputProps: { min: 0 }
+                      }}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customDJ: {
+                          ...eventData.customDJ,
+                          experience: parseInt(e.target.value) || 0
+                        }
+                      })}
+                      margin="normal"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Contact Information"
+                      value={eventData.customDJ.contactInfo}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customDJ: {
+                          ...eventData.customDJ,
+                          contactInfo: e.target.value
+                        }
+                      })}
+                      margin="normal"
+                      placeholder="Email or phone number"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={4}
+                      label="Description"
+                      value={eventData.customDJ.description}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customDJ: {
+                          ...eventData.customDJ,
+                          description: e.target.value
+                        }
+                      })}
+                      margin="normal"
+                      placeholder="Describe the DJ's style, equipment needs, and any special requirements"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      DJ Image
+                    </Typography>
+                    <Box 
+                      sx={{ 
+                        border: '2px dashed', 
+                        borderColor: 'divider', 
+                        p: 3, 
+                        borderRadius: 1,
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          bgcolor: 'action.hover'
+                        }
+                      }}
+                      onClick={() => {
+                        // In a real app, this would open a file dialog
+                        // For this demo, we'll just add a placeholder image
+                        setEventData({
+                          ...eventData,
+                          customDJ: {
+                            ...eventData.customDJ,
+                            image: 'https://via.placeholder.com/300x300?text=DJ+Image'
+                          }
+                        });
+                      }}
+                    >
+                      <Typography variant="body1" gutterBottom>
+                        Upload Image
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Click to add an image of the DJ
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  
+                  {eventData.customDJ.image && (
+                    <Grid item xs={12}>
+                      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                        <Box 
+                          sx={{ 
+                            position: 'relative',
+                            width: 150,
+                            height: 150,
+                            borderRadius: 2,
+                            overflow: 'hidden'
+                          }}
+                        >
+                          <img 
+                            src={eventData.customDJ.image} 
+                            alt="DJ" 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                          <IconButton
+                            size="small"
+                            sx={{ 
+                              position: 'absolute', 
+                              top: 0, 
+                              right: 0, 
+                              bgcolor: 'rgba(0,0,0,0.5)',
+                              color: 'white',
+                              '&:hover': {
+                                bgcolor: 'rgba(0,0,0,0.7)'
+                              }
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEventData({
+                                ...eventData,
+                                customDJ: {
+                                  ...eventData.customDJ,
+                                  image: ''
+                                }
+                              });
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  )}
+                  
+                  {/* Add confirmation buttons */}
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          setEventData({
+                            ...eventData,
+                            useCustomDJ: false
+                          });
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        disabled={!eventData.customDJ.name.trim() || eventData.customDJ.genres.length === 0}
+                        onClick={() => {
+                          // Show confirmation message
+                          setSnackbarMessage('Custom DJ has been confirmed!');
+                          setSnackbarOpen(true);
+                          
+                          // Navigate back to services tab
+                          setActiveTab('services');
+                        }}
+                      >
+                        Confirm DJ
+                      </Button>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
             )}
             
             <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3 }}>
@@ -2014,6 +3187,42 @@ const CreateEventPage: React.FC = () => {
               Add Catering
             </Typography>
             
+            {/* Toggle between existing caterers and custom catering */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                Catering Options
+              </Typography>
+              
+              <Box sx={{ mb: 2 }}>
+                <ToggleButtonGroup
+                  value={eventData.useCustomCatering ? 'custom' : 'existing'}
+                  exclusive
+                  onChange={(e, newValue) => {
+                    if (newValue) {
+                      // Clear any existing catering selection when switching modes
+                      setEventData({
+                        ...eventData,
+                        useCustomCatering: newValue === 'custom',
+                        cateringId: newValue === 'custom' ? '' : eventData.cateringId,
+                      });
+                    }
+                  }}
+                  aria-label="catering selection mode"
+                  fullWidth
+                >
+                  <ToggleButton value="existing" aria-label="select existing catering">
+                    Choose from Listed Caterers
+                  </ToggleButton>
+                  <ToggleButton value="custom" aria-label="add custom catering">
+                    Add Your Own Catering
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            </Paper>
+            
+            {/* Show catering filters and listings when "Choose from Listed Caterers" is selected */}
+            {!eventData.useCustomCatering && (
+              <>
             <Paper sx={{ p: 3, mb: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="subtitle1" fontWeight="medium">
@@ -2105,16 +3314,298 @@ const CreateEventPage: React.FC = () => {
                       borderColor: 'primary.main',
                     }}
                   >
-                      <CardActionArea onClick={() => {
-                        handleServiceSelect('catering', catering.id);
-                        setActiveTab('services');
-                      }}>
+                          <CardActionArea onClick={() => handleServiceSelect('catering', catering.id)}>
                       <ServiceCard service={catering} type="catering" />
+                            {/* Add badges for selected dates if applicable */}
+                            {providerSpecificDates[catering.id] && (
+                              <Box sx={{ p: 1, bgcolor: 'primary.light', color: 'white' }}>
+                                <Typography variant="body2">
+                                  {eventData.isMultiSelect 
+                                    ? `Selected ${providerSpecificDates[catering.id].dates?.length || 0} date(s)` 
+                                    : `Selected: ${providerSpecificDates[catering.id].date 
+                                        ? format(providerSpecificDates[catering.id].date as Date, 'MMM d, yyyy') 
+                                        : 'None'}`
+                                  }
+                                </Typography>
+                              </Box>
+                            )}
                     </CardActionArea>
                   </Card>
                 </Grid>
               ))}
             </Grid>
+                )}
+              </>
+            )}
+            
+            {/* Show custom catering form when "Add Your Own Catering" is selected */}
+            {eventData.useCustomCatering && (
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                  Enter Your Catering Details
+                </Typography>
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Catering Provider Name"
+                      value={eventData.customCatering.name}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customCatering: {
+                          ...eventData.customCatering,
+                          name: e.target.value
+                        }
+                      })}
+                      margin="normal"
+                      error={!eventData.customCatering.name.trim()}
+                      helperText={!eventData.customCatering.name.trim() ? "Provider name is required" : ""}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <FormControl fullWidth margin="normal" required>
+                      <InputLabel id="custom-cuisine-types-label">Cuisine Types</InputLabel>
+                      <Select
+                        labelId="custom-cuisine-types-label"
+                        multiple
+                        value={eventData.customCatering.cuisineTypes}
+                        onChange={(e) => setEventData({
+                          ...eventData,
+                          customCatering: {
+                            ...eventData.customCatering,
+                            cuisineTypes: e.target.value as string[]
+                          }
+                        })}
+                        renderValue={(selected) => (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {(selected as string[]).map((value) => (
+                              <Chip key={value} label={value} />
+                            ))}
+                          </Box>
+                        )}
+                        error={eventData.customCatering.cuisineTypes.length === 0}
+                      >
+                        {['International', 'Fusion', 'Gourmet', 'Italian', 'Mediterranean', 'Japanese', 'Chinese', 'Thai', 'Mexican', 'American', 'French', 'Indian', 'Vegan', 'Vegetarian', 'Gluten-Free'].map((cuisine) => (
+                          <MenuItem key={cuisine} value={cuisine}>
+                            {cuisine}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {eventData.customCatering.cuisineTypes.length === 0 && (
+                        <FormHelperText error>Please select at least one cuisine type</FormHelperText>
+                      )}
+                    </FormControl>
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <FormControl fullWidth margin="normal">
+                      <InputLabel id="custom-special-diets-label">Special Diets Accommodated</InputLabel>
+                      <Select
+                        labelId="custom-special-diets-label"
+                        multiple
+                        value={eventData.customCatering.specialDiets}
+                        onChange={(e) => setEventData({
+                          ...eventData,
+                          customCatering: {
+                            ...eventData.customCatering,
+                            specialDiets: e.target.value as string[]
+                          }
+                        })}
+                        renderValue={(selected) => (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {(selected as string[]).map((value) => (
+                              <Chip key={value} label={value} />
+                            ))}
+                          </Box>
+                        )}
+                      >
+                        {['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'Kosher', 'Halal', 'Low-Carb', 'Keto', 'Paleo'].map((diet) => (
+                          <MenuItem key={diet} value={diet}>
+                            {diet}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Price Per Person ($)"
+                      type="number"
+                      value={eventData.customCatering.pricePerPerson}
+                      InputProps={{
+                        inputProps: { min: 0 }
+                      }}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customCatering: {
+                          ...eventData.customCatering,
+                          pricePerPerson: parseInt(e.target.value) || 0
+                        }
+                      })}
+                      margin="normal"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Contact Information"
+                      value={eventData.customCatering.contactInfo}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customCatering: {
+                          ...eventData.customCatering,
+                          contactInfo: e.target.value
+                        }
+                      })}
+                      margin="normal"
+                      placeholder="Email or phone number"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={4}
+                      label="Description"
+                      value={eventData.customCatering.description}
+                      onChange={(e) => setEventData({
+                        ...eventData,
+                        customCatering: {
+                          ...eventData.customCatering,
+                          description: e.target.value
+                        }
+                      })}
+                      margin="normal"
+                      placeholder="Describe the menu, service style, and any special offerings"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Catering Image
+                    </Typography>
+                    <Box 
+                      sx={{ 
+                        border: '2px dashed', 
+                        borderColor: 'divider', 
+                        p: 3, 
+                        borderRadius: 1,
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          bgcolor: 'action.hover'
+                        }
+                      }}
+                      onClick={() => {
+                        // In a real app, this would open a file dialog
+                        // For this demo, we'll just add a placeholder image
+                        setEventData({
+                          ...eventData,
+                          customCatering: {
+                            ...eventData.customCatering,
+                            image: 'https://via.placeholder.com/300x300?text=Catering+Image'
+                          }
+                        });
+                      }}
+                    >
+                      <Typography variant="body1" gutterBottom>
+                        Upload Image
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Click to add an image of the food or catering service
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  
+                  {eventData.customCatering.image && (
+                    <Grid item xs={12}>
+                      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                        <Box 
+                          sx={{ 
+                            position: 'relative',
+                            width: 150,
+                            height: 150,
+                            borderRadius: 2,
+                            overflow: 'hidden'
+                          }}
+                        >
+                          <img 
+                            src={eventData.customCatering.image} 
+                            alt="Catering" 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                          <IconButton
+                            size="small"
+                            sx={{ 
+                              position: 'absolute', 
+                              top: 0, 
+                              right: 0, 
+                              bgcolor: 'rgba(0,0,0,0.5)',
+                              color: 'white',
+                              '&:hover': {
+                                bgcolor: 'rgba(0,0,0,0.7)'
+                              }
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEventData({
+                                ...eventData,
+                                customCatering: {
+                                  ...eventData.customCatering,
+                                  image: ''
+                                }
+                              });
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  )}
+                  
+                  {/* Add confirmation buttons */}
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          setEventData({
+                            ...eventData,
+                            useCustomCatering: false
+                          });
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        disabled={!eventData.customCatering.name.trim() || eventData.customCatering.cuisineTypes.length === 0}
+                        onClick={() => {
+                          // Show confirmation message
+                          setSnackbarMessage('Custom catering has been confirmed!');
+                          setSnackbarOpen(true);
+                          
+                          // Navigate back to services tab
+                          setActiveTab('services');
+                        }}
+                      >
+                        Confirm Catering
+                      </Button>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
             )}
             
             <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3 }}>
@@ -2162,12 +3653,90 @@ const CreateEventPage: React.FC = () => {
         
         const currentServiceList = serviceList[tabId as keyof ServiceListType] || [];
         
+        // Helper function to get the correct custom field name
+        const getCustomFieldName = (tabType: string): string => {
+          switch(tabType) {
+            case 'entertainment': return 'useCustomEntertainment';
+            case 'photography': return 'useCustomPhotography';
+            case 'decoration': return 'useCustomDecoration';
+            case 'audioVisual': return 'useCustomAudioVisual';
+            case 'furniture': return 'useCustomFurniture';
+            case 'barService': return 'useCustomBarService';
+            case 'security': return 'useCustomSecurity';
+            default: return '';
+          }
+        };
+        
+        // Helper function to get the custom object for a given service
+        const getCustomServiceObject = (tabType: string): any => {
+          switch(tabType) {
+            case 'entertainment': return eventData.customEntertainment;
+            case 'photography': return eventData.customPhotography;
+            case 'decoration': return eventData.customDecoration;
+            case 'audioVisual': return eventData.customAudioVisual;
+            case 'furniture': return eventData.customFurniture;
+            case 'barService': return eventData.customBarService;
+            case 'security': return eventData.customSecurity;
+            default: return null;
+          }
+        };
+        
+        // Check if custom option is enabled for this service
+        const customFieldName = getCustomFieldName(tabId);
+        const isCustomService = customFieldName ? (eventData as any)[customFieldName] : false;
+        const customService = getCustomServiceObject(tabId);
+        
         return (
           <Box sx={{ mt: 4 }}>
             <Typography variant="h6" gutterBottom>
               Select {categoryInfo?.label || 'Service'}
             </Typography>
             
+            {/* Toggle between existing service and custom service */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                {categoryInfo?.label || 'Service'} Options
+              </Typography>
+              
+              <Box sx={{ mb: 2 }}>
+                <ToggleButtonGroup
+                  value={isCustomService ? 'custom' : 'existing'}
+                  exclusive
+                  onChange={(e, newValue) => {
+                    if (newValue) {
+                      // Create a state update object
+                      const stateUpdate = {
+                        ...eventData
+                      } as any;
+                      
+                      // Set the custom flag
+                      stateUpdate[customFieldName] = newValue === 'custom';
+                      
+                      // Clear the service ID if we're switching to custom
+                      if (newValue === 'custom') {
+                        stateUpdate[`${tabId}Id`] = '';
+                      }
+                      
+                      // Update the state
+                      setEventData(stateUpdate);
+                    }
+                  }}
+                  aria-label={`${tabId} selection mode`}
+                  fullWidth
+                >
+                  <ToggleButton value="existing" aria-label={`select existing ${tabId}`}>
+                    Choose from Listed {categoryInfo?.label || 'Service'}
+                  </ToggleButton>
+                  <ToggleButton value="custom" aria-label={`add custom ${tabId}`}>
+                    Add Your Own {categoryInfo?.label || 'Service'}
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            </Paper>
+            
+            {/* Show existing services when "Choose from Listed Services" is selected */}
+            {!isCustomService && (
+              <>
             <Paper sx={{ p: 3, mb: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="subtitle1" fontWeight="medium">
@@ -2324,6 +3893,210 @@ const CreateEventPage: React.FC = () => {
                   </Grid>
                 ))}
               </Grid>
+                )}
+              </>
+            )}
+            
+            {/* Show custom service form when "Add Your Own Service" is selected */}
+            {isCustomService && (
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                  Enter Your {categoryInfo?.label || 'Service'} Details
+                </Typography>
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      required
+                      label={`${categoryInfo?.label || 'Service'} Name`}
+                      value={customService.name}
+                      onChange={(e) => {
+                        // Create a state update object
+                        const stateUpdate = {
+                          ...eventData
+                        } as any;
+                        
+                        // Update the name field
+                        stateUpdate[`custom${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`] = {
+                          ...customService,
+                          name: e.target.value
+                        };
+                        
+                        // Update the state
+                        setEventData(stateUpdate);
+                      }}
+                      margin="normal"
+                      error={!customService.name.trim()}
+                      helperText={!customService.name.trim() ? "Name is required" : ""}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      required
+                      multiline
+                      rows={4}
+                      label="Description"
+                      value={customService.description}
+                      onChange={(e) => {
+                        // Create a state update object
+                        const stateUpdate = {
+                          ...eventData
+                        } as any;
+                        
+                        // Update the description field
+                        stateUpdate[`custom${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`] = {
+                          ...customService,
+                          description: e.target.value
+                        };
+                        
+                        // Update the state
+                        setEventData(stateUpdate);
+                      }}
+                      margin="normal"
+                      error={!customService.description.trim()}
+                      helperText={!customService.description.trim() ? "Description is required" : ""}
+                      placeholder={`Describe the ${categoryInfo?.label || 'service'}`}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      {categoryInfo?.label || 'Service'} Image
+                    </Typography>
+                    <Box 
+                      sx={{ 
+                        border: '2px dashed', 
+                        borderColor: 'divider', 
+                        p: 3, 
+                        borderRadius: 1,
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          bgcolor: 'action.hover'
+                        }
+                      }}
+                      onClick={() => {
+                        // Create a state update object
+                        const stateUpdate = {
+                          ...eventData
+                        } as any;
+                        
+                        // Update the image field
+                        stateUpdate[`custom${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`] = {
+                          ...customService,
+                          image: `https://via.placeholder.com/300x300?text=${categoryInfo?.label || 'Service'}+Image`
+                        };
+                        
+                        // Update the state
+                        setEventData(stateUpdate);
+                      }}
+                    >
+                      <Typography variant="body1" gutterBottom>
+                        Upload Image
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Click to add an image
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  
+                  {customService.image && (
+                    <Grid item xs={12}>
+                      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                        <Box 
+                          sx={{ 
+                            position: 'relative',
+                            width: 150,
+                            height: 150,
+                            borderRadius: 2,
+                            overflow: 'hidden'
+                          }}
+                        >
+                          <img 
+                            src={customService.image} 
+                            alt={`${categoryInfo?.label || 'Service'}`} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                          <IconButton
+                            size="small"
+                            sx={{ 
+                              position: 'absolute', 
+                              top: 0, 
+                              right: 0, 
+                              bgcolor: 'rgba(0,0,0,0.5)',
+                              color: 'white',
+                              '&:hover': {
+                                bgcolor: 'rgba(0,0,0,0.7)'
+                              }
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              
+                              // Create a state update object
+                              const stateUpdate = {
+                                ...eventData
+                              } as any;
+                              
+                              // Update the image field
+                              stateUpdate[`custom${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`] = {
+                                ...customService,
+                                image: ''
+                              };
+                              
+                              // Update the state
+                              setEventData(stateUpdate);
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  )}
+                  
+                  {/* Add confirmation buttons */}
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          // Create a state update object to disable custom mode
+                          const stateUpdate = {
+                            ...eventData
+                          } as any;
+                          
+                          // Disable custom mode
+                          stateUpdate[customFieldName] = false;
+                          
+                          // Update the state
+                          setEventData(stateUpdate);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        disabled={!customService.name.trim() || !customService.description.trim()}
+                        onClick={() => {
+                          // Show confirmation message
+                          setSnackbarMessage(`Custom ${categoryInfo?.label || 'service'} has been confirmed!`);
+                          setSnackbarOpen(true);
+                          
+                          // Navigate back to services tab
+                          setActiveTab('services');
+                        }}
+                      >
+                        Confirm {categoryInfo?.label || 'Service'}
+                      </Button>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
             )}
             
             <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 3 }}>
@@ -2339,163 +4112,1266 @@ const CreateEventPage: React.FC = () => {
         );
         
       case 'review':
-        // Confirmation content (from original step 4)
-        const selectedVenue = venues.find(v => v.id === eventData.venueId);
-        const selectedDJ = djs.find(d => d.id === eventData.djId);
-        const selectedCatering = cateringServices.find(c => c.id === eventData.cateringId);
+        // Calculate total price
+        const selectedVenue = eventData.useCustomVenue ? null : availableVenues.find(v => v.id === eventData.venueId);
+        const selectedDJ = availableDJs.find(d => d.id === eventData.djId);
+        const selectedCatering = availableCaterers.find(c => c.id === eventData.cateringId);
+        const selectedEntertainment = availableEntertainment.find(e => e.id === eventData.entertainmentId);
+        const selectedPhotography = availablePhotography.find(p => p.id === eventData.photographyId);
+        const selectedDecoration = availableDecoration.find(d => d.id === eventData.decorationId);
+        const selectedAudioVisual = availableAudioVisual.find(a => a.id === eventData.audioVisualId);
+        const selectedFurniture = availableFurniture.find(f => f.id === eventData.furnitureId);
+        const selectedBarService = availableBarServices.find(b => b.id === eventData.barServiceId);
+        const selectedSecurity = availableSecurity.find(s => s.id === eventData.securityId);
         
-        // Calculate number of days for multi-day events
-        const numberOfDays = eventData.isMultiDay && eventData.dateRange.start && eventData.dateRange.end
-          ? Math.round((eventData.dateRange.end.getTime() - eventData.dateRange.start.getTime()) / (1000 * 60 * 60 * 24)) + 1
-        : 1;
+        // Calculate the base price
+        let venuePrice = selectedVenue ? selectedVenue.price || 0 : 0;
+        const djPrice = selectedDJ ? selectedDJ.price || 0 : 0;
+        const cateringPrice = selectedCatering ? (selectedCatering.price || 0) * eventData.attendees : 0;
+        const entertainmentPrice = selectedEntertainment ? selectedEntertainment.price || 0 : 0;
+        const photographyPrice = selectedPhotography ? selectedPhotography.price || 0 : 0;
+        const decorationPrice = selectedDecoration ? selectedDecoration.price || 0 : 0;
+        const audioVisualPrice = selectedAudioVisual ? selectedAudioVisual.price || 0 : 0;
+        const furniturePrice = selectedFurniture ? selectedFurniture.price || 0 : 0;
+        const barServicePrice = selectedBarService ? selectedBarService.price || 0 : 0;
+        const securityPrice = selectedSecurity ? selectedSecurity.price || 0 : 0;
         
-        // Calculate costs
-        const venueCost = selectedVenue ? selectedVenue.price * numberOfDays : 0;
-        const djCost = selectedDJ ? selectedDJ.price * numberOfDays : 0;
-        const cateringCost = selectedCatering ? selectedCatering.price * eventData.attendees * numberOfDays : 0;
+        // Calculate total
+        const total = venuePrice + djPrice + cateringPrice + entertainmentPrice + photographyPrice + 
+                      decorationPrice + audioVisualPrice + furniturePrice + barServicePrice + securityPrice;
         
-        // Calculate tax and service fees (example rates)
-        const taxRate = 0.08; // 8% tax
-        const serviceFee = 0.15; // 15% service fee
-        
-        const subtotal = venueCost + djCost + cateringCost;
-        const taxAmount = subtotal * taxRate;
-        const serviceFeeAmount = subtotal * serviceFee;
-        const total = subtotal + taxAmount + serviceFeeAmount;
-        
+        // Generate the review content
         return (
           <Box sx={{ mt: 4 }}>
             <Typography variant="h6" gutterBottom>
-              Event Summary
+              Review Your Event
             </Typography>
             
-            <Paper sx={{ p: 3, mt: 2 }}>
-              <Typography variant="h5" gutterBottom>
-                {eventData.name || 'Untitled Event'}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                Event Details
               </Typography>
               
-              <Typography variant="body1" gutterBottom>
-                {eventData.isMultiDay && eventData.dateRange.start && eventData.dateRange.end ? (
-                  <>
-                    Date Range: {format(eventData.dateRange.start, 'MMM d, yyyy')} - {format(eventData.dateRange.end, 'MMM d, yyyy')} ({numberOfDays} days)
-                  </>
-                ) : (
-                  <>
-                    Date: {eventData.date ? format(eventData.date, 'MMM d, yyyy') : 'Not selected'}
-                  </>
-                )}
-              </Typography>
-              
-              <Typography variant="body1" gutterBottom>
-                Attendees: {eventData.attendees}
-              </Typography>
-              
-              <Typography variant="body1" gutterBottom>
-                Public Event: {eventData.isPublic ? 'Yes' : 'No'}
-              </Typography>
-              
-              <Divider sx={{ my: 2 }} />
-              
-              <Typography variant="h6" gutterBottom>
-                Selected Services:
-              </Typography>
-              
-              {selectedVenue && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight="medium">
-                    Venue: {selectedVenue.name}
-              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    {selectedVenue.type} • {selectedVenue.style.join(', ')}
+                    Event Name
                   </Typography>
-                  <Typography variant="body2">
-                    ${selectedVenue.price.toLocaleString()} per day × {numberOfDays} {numberOfDays > 1 ? 'days' : 'day'}
+              <Typography variant="body1" gutterBottom>
+                    {eventData.name || 'Not specified'}
+              </Typography>
+                </Grid>
+              
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Expected Attendees
                   </Typography>
+              <Typography variant="body1" gutterBottom>
+                    {eventData.attendees} guests
+              </Typography>
+                </Grid>
+              
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">
+                    Event Type
+                  </Typography>
+              <Typography variant="body1" gutterBottom>
+                    {eventData.isPublic ? 'Public Event' : 'Private Event'}
+              </Typography>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">
+                    Date(s)
+                  </Typography>
+                  <Typography variant="body1" gutterBottom>
+                    {eventData.isMultiSelect ? (
+                      <>Selected {eventData.selectedDates.length} date(s): {eventData.selectedDates.map(d => format(d, 'MMM d, yyyy')).join(', ')}</>
+                    ) : eventData.isMultiDay ? (
+                      <>{format(eventData.dateRange.start!, 'MMM d, yyyy')} - {format(eventData.dateRange.end!, 'MMM d, yyyy')}</>
+                    ) : (
+                      <>{format(eventData.date!, 'MMM d, yyyy')}</>
+                    )}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+            
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                Service Details
+              </Typography>
+              
+              <Grid container spacing={3}>
+                {/* Venue section */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Venue
+              </Typography>
+                  {eventData.useCustomVenue ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {eventData.customVenue.name || 'Custom Venue'}
+                  </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        Location: {eventData.customVenue.location || 'Not specified'}
+                  </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        Capacity: {eventData.customVenue.capacity || 'Not specified'} guests
+                      </Typography>
+                      {eventData.customVenue.description && (
+                        <Typography variant="body2" gutterBottom>
+                          Description: {eventData.customVenue.description}
+                        </Typography>
+                      )}
+                      {eventData.customVenue.images.length > 0 && (
+                        <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+                          {eventData.customVenue.images.map((image, i) => (
+                            <Box
+                              key={i}
+                              component="img"
+                              src={image}
+                              alt={`Venue image ${i+1}`}
+                              sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
+                            />
+                          ))}
                 </Box>
               )}
-              
-              {selectedDJ && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight="medium">
-                    DJ: {selectedDJ.name}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          Custom Venue (No charge)
               </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {selectedDJ.genres.join(', ')}
+                      </Box>
+                    </Box>
+                  ) : selectedVenue ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {selectedVenue.name}
                   </Typography>
-                  <Typography variant="body2">
-                    ${selectedDJ.price.toLocaleString()} per day × {numberOfDays} {numberOfDays > 1 ? 'days' : 'day'}
+                      <Typography variant="body2" gutterBottom>
+                        {selectedVenue.description}
+                      </Typography>
+                      {providerSpecificDates[selectedVenue.id] && (
+                        <Typography variant="body2" color="primary.main" gutterBottom>
+                          {eventData.isMultiSelect 
+                            ? `Booked for ${providerSpecificDates[selectedVenue.id].dates?.length || 0} date(s)` 
+                            : `Booked for: ${providerSpecificDates[selectedVenue.id].date 
+                                ? format(providerSpecificDates[selectedVenue.id].date as Date, 'MMM d, yyyy') 
+                                : 'No specific date'}`
+                          }
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${selectedVenue.price?.toLocaleString()}
                   </Typography>
                 </Box>
-              )}
-              
-              {selectedCatering && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight="medium">
-                    Catering: {selectedCatering.name}
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      No venue selected
+                    </Typography>
+                  )}
+                </Grid>
+                
+                {/* DJ section */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    DJ
               </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {selectedCatering.cuisineType.join(', ')}
+                  {eventData.useCustomDJ ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {eventData.customDJ.name || 'Custom DJ'}
                   </Typography>
-                  <Typography variant="body2">
-                    ${selectedCatering.price.toLocaleString()} per person × {eventData.attendees} guests × {numberOfDays} {numberOfDays > 1 ? 'days' : 'day'}
+                      <Typography variant="body2" gutterBottom>
+                        Genres: {eventData.customDJ.genres.join(', ') || 'Not specified'}
                   </Typography>
+                      {eventData.customDJ.experience > 0 && (
+                        <Typography variant="body2" gutterBottom>
+                          Experience: {eventData.customDJ.experience} years
+                        </Typography>
+                      )}
+                      {eventData.customDJ.description && (
+                        <Typography variant="body2" gutterBottom>
+                          Description: {eventData.customDJ.description}
+                        </Typography>
+                      )}
+                      {eventData.customDJ.contactInfo && (
+                        <Typography variant="body2" gutterBottom>
+                          Contact: {eventData.customDJ.contactInfo}
+                        </Typography>
+                      )}
+                      {eventData.customDJ.image && (
+                        <Box sx={{ display: 'flex', mt: 1 }}>
+                          <Box
+                            component="img"
+                            src={eventData.customDJ.image}
+                            alt="DJ image"
+                            sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
+                          />
                 </Box>
               )}
-              
-              <Divider sx={{ my: 2 }} />
-              
-              <Typography variant="h6" gutterBottom>
-                Price Breakdown:
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          Custom DJ (No charge)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : selectedDJ ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {selectedDJ.name}
+                      </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        {selectedDJ.genres ? selectedDJ.genres.join(', ') : ''}
+                      </Typography>
+                      {providerSpecificDates[selectedDJ.id] && (
+                        <Typography variant="body2" color="primary.main" gutterBottom>
+                          {eventData.isMultiSelect 
+                            ? `Booked for ${providerSpecificDates[selectedDJ.id].dates?.length || 0} date(s)` 
+                            : `Booked for: ${providerSpecificDates[selectedDJ.id].date 
+                                ? format(providerSpecificDates[selectedDJ.id].date as Date, 'MMM d, yyyy') 
+                                : 'No specific date'}`
+                          }
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${selectedDJ.price?.toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      No DJ selected (optional)
+                    </Typography>
+                  )}
+                </Grid>
+                
+                {/* Catering section */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Catering
               </Typography>
-              
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body1">Venue Total:</Typography>
-                <Typography variant="body1">${venueCost.toLocaleString()}</Typography>
-              </Box>
-              
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body1">DJ Total:</Typography>
-                <Typography variant="body1">${djCost.toLocaleString()}</Typography>
-              </Box>
-              
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body1">Catering Total:</Typography>
-                <Typography variant="body1">${cateringCost.toLocaleString()}</Typography>
-              </Box>
-              
-              <Divider sx={{ my: 1 }} />
-              
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body1">Subtotal:</Typography>
-                <Typography variant="body1">${subtotal.toLocaleString()}</Typography>
-              </Box>
-              
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body1">Tax ({(taxRate * 100).toFixed(0)}%):</Typography>
-                <Typography variant="body1">${taxAmount.toLocaleString()}</Typography>
-              </Box>
-              
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body1">Service Fee ({(serviceFee * 100).toFixed(0)}%):</Typography>
-                <Typography variant="body1">${serviceFeeAmount.toLocaleString()}</Typography>
-              </Box>
-              
-              <Divider sx={{ my: 1 }} />
-              
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="h6">Total:</Typography>
-                <Typography variant="h6" fontWeight="bold">${total.toLocaleString()}</Typography>
-              </Box>
-              
-              <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.light', borderRadius: 1 }}>
-                <Typography variant="body2" color="primary.contrastText">
-                  A 25% deposit (${(total * 0.25).toLocaleString()}) will be required to confirm your booking. The remaining balance will be due 14 days before your event.
+                  {eventData.useCustomCatering ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {eventData.customCatering.name || 'Custom Catering'}
+                  </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        Cuisine: {eventData.customCatering.cuisineTypes.join(', ') || 'Not specified'}
+                  </Typography>
+                      {eventData.customCatering.specialDiets.length > 0 && (
+                        <Typography variant="body2" gutterBottom>
+                          Special Diets: {eventData.customCatering.specialDiets.join(', ')}
+                        </Typography>
+                      )}
+                      {eventData.customCatering.description && (
+                        <Typography variant="body2" gutterBottom>
+                          Description: {eventData.customCatering.description}
+                        </Typography>
+                      )}
+                      {eventData.customCatering.contactInfo && (
+                        <Typography variant="body2" gutterBottom>
+                          Contact: {eventData.customCatering.contactInfo}
+                        </Typography>
+                      )}
+                      {eventData.customCatering.image && (
+                        <Box sx={{ display: 'flex', mt: 1 }}>
+                          <Box
+                            component="img"
+                            src={eventData.customCatering.image}
+                            alt="Catering image"
+                            sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
+                          />
+                </Box>
+              )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${eventData.customCatering.pricePerPerson} per person × {eventData.attendees} guests = ${(eventData.customCatering.pricePerPerson * eventData.attendees).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : selectedCatering ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {selectedCatering.name}
+                      </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        {selectedCatering.cuisineType ? selectedCatering.cuisineType.join(', ') : ''}
+                      </Typography>
+                      {providerSpecificDates[selectedCatering.id] && (
+                        <Typography variant="body2" color="primary.main" gutterBottom>
+                          {eventData.isMultiSelect 
+                            ? `Booked for ${providerSpecificDates[selectedCatering.id].dates?.length || 0} date(s)` 
+                            : `Booked for: ${providerSpecificDates[selectedCatering.id].date 
+                                ? format(providerSpecificDates[selectedCatering.id].date as Date, 'MMM d, yyyy') 
+                                : 'No specific date'}`
+                          }
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${selectedCatering.price?.toLocaleString()} per person × {eventData.attendees} guests = ${(selectedCatering.price! * eventData.attendees).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      No catering selected (optional)
+                    </Typography>
+                  )}
+                </Grid>
+                
+                {/* Entertainment section */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Entertainment
+                  </Typography>
+                  {eventData.useCustomEntertainment ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {eventData.customEntertainment.name || 'Custom Entertainment'}
+                      </Typography>
+                      {eventData.customEntertainment.description && (
+                        <Typography variant="body2" gutterBottom>
+                          Description: {eventData.customEntertainment.description}
+                        </Typography>
+                      )}
+                      {eventData.customEntertainment.image && (
+                        <Box sx={{ display: 'flex', mt: 1 }}>
+                          <Box
+                            component="img"
+                            src={eventData.customEntertainment.image}
+                            alt="Entertainment image"
+                            sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
+                          />
+                        </Box>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          Custom Entertainment (No charge)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : selectedEntertainment ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {selectedEntertainment.name}
+                      </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        {selectedEntertainment.description}
+                      </Typography>
+                      {providerSpecificDates[selectedEntertainment.id] && (
+                        <Typography variant="body2" color="primary.main" gutterBottom>
+                          {eventData.isMultiSelect 
+                            ? `Booked for ${providerSpecificDates[selectedEntertainment.id].dates?.length || 0} date(s)` 
+                            : `Booked for: ${providerSpecificDates[selectedEntertainment.id].date 
+                                ? format(providerSpecificDates[selectedEntertainment.id].date as Date, 'MMM d, yyyy') 
+                                : 'No specific date'}`
+                          }
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${selectedEntertainment.price?.toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      No entertainment selected (optional)
+                    </Typography>
+                  )}
+                </Grid>
+
+                {/* Photography section */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Photography
               </Typography>
+                  {eventData.useCustomPhotography ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {eventData.customPhotography.name || 'Custom Photography'}
+                      </Typography>
+                      {eventData.customPhotography.description && (
+                        <Typography variant="body2" gutterBottom>
+                          Description: {eventData.customPhotography.description}
+                        </Typography>
+                      )}
+                      {eventData.customPhotography.image && (
+                        <Box sx={{ display: 'flex', mt: 1 }}>
+                          <Box
+                            component="img"
+                            src={eventData.customPhotography.image}
+                            alt="Photography image"
+                            sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
+                          />
+                        </Box>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          Custom Photography (No charge)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : selectedPhotography ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {selectedPhotography.name}
+                      </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        {selectedPhotography.description}
+                      </Typography>
+                      {providerSpecificDates[selectedPhotography.id] && (
+                        <Typography variant="body2" color="primary.main" gutterBottom>
+                          {eventData.isMultiSelect 
+                            ? `Booked for ${providerSpecificDates[selectedPhotography.id].dates?.length || 0} date(s)` 
+                            : `Booked for: ${providerSpecificDates[selectedPhotography.id].date 
+                                ? format(providerSpecificDates[selectedPhotography.id].date as Date, 'MMM d, yyyy') 
+                                : 'No specific date'}`
+                          }
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${selectedPhotography.price?.toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      No photography selected (optional)
+                    </Typography>
+                  )}
+                </Grid>
+
+                {/* Decoration section */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Decoration
+                  </Typography>
+                  {eventData.useCustomDecoration ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {eventData.customDecoration.name || 'Custom Decoration'}
+                      </Typography>
+                      {eventData.customDecoration.description && (
+                        <Typography variant="body2" gutterBottom>
+                          Description: {eventData.customDecoration.description}
+                        </Typography>
+                      )}
+                      {eventData.customDecoration.image && (
+                        <Box sx={{ display: 'flex', mt: 1 }}>
+                          <Box
+                            component="img"
+                            src={eventData.customDecoration.image}
+                            alt="Decoration image"
+                            sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
+                          />
               </Box>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          Custom Decoration (No charge)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : selectedDecoration ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {selectedDecoration.name}
+                      </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        {selectedDecoration.description}
+                      </Typography>
+                      {providerSpecificDates[selectedDecoration.id] && (
+                        <Typography variant="body2" color="primary.main" gutterBottom>
+                          {eventData.isMultiSelect 
+                            ? `Booked for ${providerSpecificDates[selectedDecoration.id].dates?.length || 0} date(s)` 
+                            : `Booked for: ${providerSpecificDates[selectedDecoration.id].date 
+                                ? format(providerSpecificDates[selectedDecoration.id].date as Date, 'MMM d, yyyy') 
+                                : 'No specific date'}`
+                          }
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${selectedDecoration.price?.toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      No decoration selected (optional)
+                    </Typography>
+                  )}
+                </Grid>
+
+                {/* Audio/Visual section */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Audio/Visual
+                  </Typography>
+                  {eventData.useCustomAudioVisual ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {eventData.customAudioVisual.name || 'Custom Audio/Visual'}
+                      </Typography>
+                      {eventData.customAudioVisual.description && (
+                        <Typography variant="body2" gutterBottom>
+                          Description: {eventData.customAudioVisual.description}
+                        </Typography>
+                      )}
+                      {eventData.customAudioVisual.image && (
+                        <Box sx={{ display: 'flex', mt: 1 }}>
+                          <Box
+                            component="img"
+                            src={eventData.customAudioVisual.image}
+                            alt="Audio/Visual image"
+                            sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
+                          />
+              </Box>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          Custom Audio/Visual (No charge)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : selectedAudioVisual ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {selectedAudioVisual.name}
+                      </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        {selectedAudioVisual.description}
+                      </Typography>
+                      {providerSpecificDates[selectedAudioVisual.id] && (
+                        <Typography variant="body2" color="primary.main" gutterBottom>
+                          {eventData.isMultiSelect 
+                            ? `Booked for ${providerSpecificDates[selectedAudioVisual.id].dates?.length || 0} date(s)` 
+                            : `Booked for: ${providerSpecificDates[selectedAudioVisual.id].date 
+                                ? format(providerSpecificDates[selectedAudioVisual.id].date as Date, 'MMM d, yyyy') 
+                                : 'No specific date'}`
+                          }
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${selectedAudioVisual.price?.toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      No audio/visual selected (optional)
+                    </Typography>
+                  )}
+                </Grid>
+
+                {/* Furniture section */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Furniture
+                  </Typography>
+                  {eventData.useCustomFurniture ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {eventData.customFurniture.name || 'Custom Furniture'}
+                      </Typography>
+                      {eventData.customFurniture.description && (
+                        <Typography variant="body2" gutterBottom>
+                          Description: {eventData.customFurniture.description}
+                        </Typography>
+                      )}
+                      {eventData.customFurniture.image && (
+                        <Box sx={{ display: 'flex', mt: 1 }}>
+                          <Box
+                            component="img"
+                            src={eventData.customFurniture.image}
+                            alt="Furniture image"
+                            sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
+                          />
+              </Box>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          Custom Furniture (No charge)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : selectedFurniture ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {selectedFurniture.name}
+                      </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        {selectedFurniture.description}
+                      </Typography>
+                      {providerSpecificDates[selectedFurniture.id] && (
+                        <Typography variant="body2" color="primary.main" gutterBottom>
+                          {eventData.isMultiSelect 
+                            ? `Booked for ${providerSpecificDates[selectedFurniture.id].dates?.length || 0} date(s)` 
+                            : `Booked for: ${providerSpecificDates[selectedFurniture.id].date 
+                                ? format(providerSpecificDates[selectedFurniture.id].date as Date, 'MMM d, yyyy') 
+                                : 'No specific date'}`
+                          }
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${selectedFurniture.price?.toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      No furniture selected (optional)
+                    </Typography>
+                  )}
+                </Grid>
+
+                {/* Bar Service section */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Bar Service
+                  </Typography>
+                  {eventData.useCustomBarService ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {eventData.customBarService.name || 'Custom Bar Service'}
+                      </Typography>
+                      {eventData.customBarService.description && (
+                        <Typography variant="body2" gutterBottom>
+                          Description: {eventData.customBarService.description}
+                        </Typography>
+                      )}
+                      {eventData.customBarService.image && (
+                        <Box sx={{ display: 'flex', mt: 1 }}>
+                          <Box
+                            component="img"
+                            src={eventData.customBarService.image}
+                            alt="Bar Service image"
+                            sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
+                          />
+              </Box>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          Custom Bar Service (No charge)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : selectedBarService ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {selectedBarService.name}
+                      </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        {selectedBarService.description}
+                      </Typography>
+                      {providerSpecificDates[selectedBarService.id] && (
+                        <Typography variant="body2" color="primary.main" gutterBottom>
+                          {eventData.isMultiSelect 
+                            ? `Booked for ${providerSpecificDates[selectedBarService.id].dates?.length || 0} date(s)` 
+                            : `Booked for: ${providerSpecificDates[selectedBarService.id].date 
+                                ? format(providerSpecificDates[selectedBarService.id].date as Date, 'MMM d, yyyy') 
+                                : 'No specific date'}`
+                          }
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${selectedBarService.price?.toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      No bar service selected (optional)
+                    </Typography>
+                  )}
+                </Grid>
+
+                {/* Security section */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Security
+                  </Typography>
+                  {eventData.useCustomSecurity ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {eventData.customSecurity.name || 'Custom Security'}
+                      </Typography>
+                      {eventData.customSecurity.description && (
+                        <Typography variant="body2" gutterBottom>
+                          Description: {eventData.customSecurity.description}
+                        </Typography>
+                      )}
+                      {eventData.customSecurity.image && (
+                        <Box sx={{ display: 'flex', mt: 1 }}>
+                          <Box
+                            component="img"
+                            src={eventData.customSecurity.image}
+                            alt="Security image"
+                            sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
+                          />
+              </Box>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          Custom Security (No charge)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : selectedSecurity ? (
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {selectedSecurity.name}
+                      </Typography>
+                      <Typography variant="body2" gutterBottom>
+                        {selectedSecurity.description}
+                      </Typography>
+                      {providerSpecificDates[selectedSecurity.id] && (
+                        <Typography variant="body2" color="primary.main" gutterBottom>
+                          {eventData.isMultiSelect 
+                            ? `Booked for ${providerSpecificDates[selectedSecurity.id].dates?.length || 0} date(s)` 
+                            : `Booked for: ${providerSpecificDates[selectedSecurity.id].date 
+                                ? format(providerSpecificDates[selectedSecurity.id].date as Date, 'MMM d, yyyy') 
+                                : 'No specific date'}`
+                          }
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Typography variant="body1" color="primary.main">
+                          ${selectedSecurity.price?.toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      No security selected (optional)
+                    </Typography>
+                  )}
+                </Grid>
+              </Grid>
             </Paper>
           </Box>
         );
     }
+  };
+  
+  // Add this function after the filterServicesForDateRange function to support the cascading filter
+  const filterForPriorSelections = (startDate: Date, endDate: Date) => {
+    // Get all dates that have already been selected for any provider
+    const allSelectedDates: string[] = [];
+    Object.values(providerSpecificDates).forEach(providerData => {
+      if (providerData.date) {
+        allSelectedDates.push(format(providerData.date as Date, 'yyyy-MM-dd'));
+      }
+      if (providerData.dates && providerData.dates.length > 0) {
+        providerData.dates.forEach(date => {
+          allSelectedDates.push(format(date, 'yyyy-MM-dd'));
+        });
+      }
+    });
+
+    // For venues, prioritize those available on already selected dates
+    if (allSelectedDates.length > 0) {
+      // Filter venues that are available on at least one of the already selected dates
+      let priorityVenues = availableVenues.filter(venue => 
+        allSelectedDates.some(dateStr => venue.availability.includes(dateStr))
+      );
+      
+      // If we found venues that match the priority dates, use those
+      if (priorityVenues.length > 0) {
+        setAvailableVenues(priorityVenues);
+      }
+      
+      // Do the same for DJs
+      let priorityDJs = availableDJs.filter(dj => 
+        allSelectedDates.some(dateStr => dj.availability.includes(dateStr))
+      );
+      
+      if (priorityDJs.length > 0) {
+        setAvailableDJs(priorityDJs);
+      }
+      
+      // And for caterers
+      let priorityCaterers = availableCaterers.filter(caterer => 
+        allSelectedDates.some(dateStr => caterer.availability.includes(dateStr))
+      );
+      
+      if (priorityCaterers.length > 0) {
+        setAvailableCaterers(priorityCaterers);
+      }
+      
+      // Continue with other service types...
+      // Entertainment
+      let priorityEntertainment = availableEntertainment.filter(item => 
+        allSelectedDates.some(dateStr => item.availability.includes(dateStr))
+      );
+      
+      if (priorityEntertainment.length > 0) {
+        setAvailableEntertainment(priorityEntertainment);
+      }
+      
+      // Photography
+      let priorityPhotography = availablePhotography.filter(item => 
+        allSelectedDates.some(dateStr => item.availability.includes(dateStr))
+      );
+      
+      if (priorityPhotography.length > 0) {
+        setAvailablePhotography(priorityPhotography);
+      }
+      
+      // And so on for other services...
+    }
+  };
+  
+  // Get all dates that are already selected by other providers
+  const getAlreadySelectedProviderDates = (): string[] => {
+    const allDates: string[] = [];
+    Object.entries(providerSpecificDates).forEach(([providerId, data]) => {
+      // Skip the current provider if we're editing an existing selection
+      if (currentSelectingProvider && providerId === currentSelectingProvider.id) {
+        return;
+      }
+      
+      // Add all selected dates
+      if (data.date) {
+        allDates.push(format(data.date as Date, 'yyyy-MM-dd'));
+      }
+      if (data.dates && data.dates.length > 0) {
+        data.dates.forEach(date => {
+          allDates.push(format(date, 'yyyy-MM-dd'));
+        });
+      }
+    });
+    return allDates;
+  };
+  
+  // Get dates that are selected for other providers as Date objects
+  const getSelectedDatesForOtherServices = (): Date[] => {
+    const dates: Date[] = [];
+    Object.entries(providerSpecificDates).forEach(([providerId, data]) => {
+      // Skip the current provider if we're editing an existing selection
+      if (currentSelectingProvider && providerId === currentSelectingProvider.id) {
+        return;
+      }
+      
+      // Add all selected dates as Date objects
+      if (data.date) {
+        dates.push(new Date(data.date as Date));
+      }
+      if (data.dates && data.dates.length > 0) {
+        data.dates.forEach(date => {
+          dates.push(new Date(date));
+        });
+      }
+    });
+    console.log('Selected dates for other services:', dates.map(d => format(d, 'yyyy-MM-dd')));
+    return dates;
+  };
+  
+  // Get unavailable dates based on other provider selections
+  const getUnavailableDates = (provider: ServiceProvider | undefined): string[] => {
+    if (!provider || !provider.availability) return [];
+    
+    const allSelectedDates = getAlreadySelectedProviderDates();
+    
+    // Return dates that are not in the provider's availability
+    if (allSelectedDates.length > 0) {
+      // For each selected date, check if this provider is available
+      return allSelectedDates.filter(dateStr => !provider.availability.includes(dateStr));
+    }
+    
+    return [];
+  };
+  
+  // Handler for provider selection mode change
+  const handleProviderSelectionModeChange = (isMultiSelectMode: boolean) => {
+    // Update the global selection mode
+    setEventData({
+      ...eventData,
+      isMultiSelect: isMultiSelectMode
+    });
+    
+    // Keep track of current selected dates
+    if (!isMultiSelectMode && tempSelectedDates.length > 0) {
+      // If switching to single mode and we have multiple dates, just keep the first one
+      setTempSelectedDate(tempSelectedDates[0]);
+      setTempSelectedDates([tempSelectedDates[0]]);
+    } else if (isMultiSelectMode && tempSelectedDate) {
+      // If switching to multi mode and we have a single date, convert it to an array
+      if (tempSelectedDates.length === 0) {
+        setTempSelectedDates([tempSelectedDate]);
+      }
+    }
+  };
+
+  // The tab content for selecting provider-specific dates
+  const getProviderDateSelectorTab = () => {
+    if (!currentSelectingProvider || !currentSelectingProviderType) return null;
+    
+    // Determine the proper date range to pass based on selection mode
+    let dateRangeToPass = eventData.dateRange;
+    
+    // If we're in multi-select mode with no date range, pass null as date range
+    if (eventData.isMultiSelect && (!eventData.dateRange.start || !eventData.dateRange.end) && eventData.selectedDates.length > 0) {
+      dateRangeToPass = { start: null, end: null };
+    }
+    
+    // Ensure we have proper available dates
+    if (availableDatesForDisplay.length === 0 && currentSelectingProvider.availability.length > 0) {
+      console.log("Warning: No available dates provided to date selector but provider has availability");
+      
+      // As a fallback, generate available dates from the provider's availability
+      let fallbackDates: Date[] = [];
+      
+      if (eventData.isMultiDay && eventData.dateRange.start && eventData.dateRange.end) {
+        // For date range
+        fallbackDates = currentSelectingProvider.availability
+          .filter(dateStr => {
+            const date = new Date(dateStr);
+            return (date >= eventData.dateRange.start! && date <= eventData.dateRange.end!);
+          })
+          .map(dateStr => new Date(dateStr));
+      } else if (eventData.isMultiSelect && eventData.selectedDates.length > 0) {
+        // For multi-select dates
+        fallbackDates = currentSelectingProvider.availability
+          .filter(dateStr => 
+            eventData.selectedDates.some(selectedDate => 
+              format(selectedDate, 'yyyy-MM-dd') === dateStr
+            )
+          )
+          .map(dateStr => new Date(dateStr));
+      }
+      
+      // Update the availableDatesForDisplay state
+      if (fallbackDates.length > 0) {
+        setAvailableDatesForDisplay(fallbackDates);
+      }
+    }
+    
+    return (
+      <ProviderDateSelector 
+        provider={currentSelectingProvider}
+        providerType={currentSelectingProviderType}
+        dateRange={dateRangeToPass}
+        selectedDate={tempSelectedDate}
+        selectedDates={eventData.isMultiSelect ? [...eventData.selectedDates, ...tempSelectedDates] : tempSelectedDates}
+        onDateSelect={handleProviderDateSelect}
+        onConfirm={handleConfirmProviderDateSelection}
+        onCancel={handleCancelProviderDateSelection}
+        isMultiSelect={eventData.isMultiSelect}
+        onSelectionModeChange={handleProviderSelectionModeChange}
+        unavailableDates={getUnavailableDates(currentSelectingProvider)}
+        alreadySelectedProviderDates={getAlreadySelectedProviderDates()}
+        availableDatesForDisplay={availableDatesForDisplay}
+        selectedDatesForOtherServices={getSelectedDatesForOtherServices()}
+      />
+    );
+  };
+  
+  // Check if the required services are selected
+  const hasRequiredServices = useCallback(() => {
+    // Venue is required - either a venue ID OR a custom venue with required fields
+    const hasVenue = eventData.venueId || (
+      eventData.useCustomVenue && 
+      eventData.customVenue.name.trim() !== '' && 
+      eventData.customVenue.location.trim() !== '' &&
+      eventData.customVenue.capacity > 0
+    );
+    
+    // No longer requiring DJ, but if custom DJ is used, it should have required fields filled
+    const hasDJ = !eventData.useCustomDJ || (
+      eventData.useCustomDJ && 
+      eventData.customDJ.name.trim() !== '' && 
+      eventData.customDJ.genres.length > 0
+    );
+    
+    // If custom catering is used, it should have required fields filled
+    const hasCatering = !eventData.useCustomCatering || (
+      eventData.useCustomCatering && 
+      eventData.customCatering.name.trim() !== '' && 
+      eventData.customCatering.cuisineTypes.length > 0
+    );
+    
+    // For remaining services, just check that name and description are filled if custom is selected
+    const hasEntertainment = !eventData.useCustomEntertainment || (
+      eventData.useCustomEntertainment && 
+      eventData.customEntertainment.name.trim() !== '' && 
+      eventData.customEntertainment.description.trim() !== ''
+    );
+    
+    const hasPhotography = !eventData.useCustomPhotography || (
+      eventData.useCustomPhotography && 
+      eventData.customPhotography.name.trim() !== '' && 
+      eventData.customPhotography.description.trim() !== ''
+    );
+    
+    const hasDecoration = !eventData.useCustomDecoration || (
+      eventData.useCustomDecoration && 
+      eventData.customDecoration.name.trim() !== '' && 
+      eventData.customDecoration.description.trim() !== ''
+    );
+    
+    const hasAudioVisual = !eventData.useCustomAudioVisual || (
+      eventData.useCustomAudioVisual && 
+      eventData.customAudioVisual.name.trim() !== '' && 
+      eventData.customAudioVisual.description.trim() !== ''
+    );
+    
+    const hasFurniture = !eventData.useCustomFurniture || (
+      eventData.useCustomFurniture && 
+      eventData.customFurniture.name.trim() !== '' && 
+      eventData.customFurniture.description.trim() !== ''
+    );
+    
+    const hasBarService = !eventData.useCustomBarService || (
+      eventData.useCustomBarService && 
+      eventData.customBarService.name.trim() !== '' && 
+      eventData.customBarService.description.trim() !== ''
+    );
+    
+    const hasSecurity = !eventData.useCustomSecurity || (
+      eventData.useCustomSecurity && 
+      eventData.customSecurity.name.trim() !== '' && 
+      eventData.customSecurity.description.trim() !== ''
+    );
+    
+    // Only venue is required, other custom service validation is for form completeness only
+    return hasVenue && hasDJ && hasCatering && hasEntertainment && hasPhotography && 
+           hasDecoration && hasAudioVisual && hasFurniture && hasBarService && hasSecurity;
+  }, [eventData.venueId, eventData.useCustomVenue, eventData.customVenue, 
+      eventData.useCustomDJ, eventData.customDJ,
+      eventData.useCustomCatering, eventData.customCatering,
+      eventData.useCustomEntertainment, eventData.customEntertainment,
+      eventData.useCustomPhotography, eventData.customPhotography,
+      eventData.useCustomDecoration, eventData.customDecoration,
+      eventData.useCustomAudioVisual, eventData.customAudioVisual,
+      eventData.useCustomFurniture, eventData.customFurniture,
+      eventData.useCustomBarService, eventData.customBarService,
+      eventData.useCustomSecurity, eventData.customSecurity]);
+  
+  // Generic custom service form for remaining services (entertainment, photography, decoration, etc.)
+  const getCustomServiceForm = (tabId: string) => {
+    // Get category information
+    const categoryInfo = serviceCategories.find(cat => cat.id === tabId);
+    
+    // Get the custom field name for this service (e.g., useCustomEntertainment)
+    const customFieldName = `useCustom${tabId.charAt(0).toUpperCase() + tabId.slice(1)}` as keyof typeof eventData;
+    
+    // Get the custom service object from eventData (e.g., customEntertainment)
+    const customServiceField = `custom${tabId.charAt(0).toUpperCase() + tabId.slice(1)}` as keyof typeof eventData;
+    const customService = eventData[customServiceField] as any;
+    
+    return (
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          Add Your Own {categoryInfo?.label || 'Service'}
+        </Typography>
+        
+        <Grid container spacing={2}>
+          {/* Service Name */}
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label={`${categoryInfo?.label || 'Service'} Name`}
+              value={customService.name}
+              onChange={(e) => {
+                // Create a state update object
+                const stateUpdate = {
+                  ...eventData
+                } as any;
+                
+                // Update the name field
+                stateUpdate[customServiceField] = {
+                  ...customService,
+                  name: e.target.value
+                };
+                
+                // Update the state
+                setEventData(stateUpdate);
+              }}
+              required
+              error={!customService.name.trim()}
+              helperText={!customService.name.trim() ? "Name is required" : ""}
+            />
+          </Grid>
+          
+          {/* Description */}
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Description"
+              multiline
+              rows={4}
+              value={customService.description}
+              onChange={(e) => {
+                // Create a state update object
+                const stateUpdate = {
+                  ...eventData
+                } as any;
+                
+                // Update the description field
+                stateUpdate[customServiceField] = {
+                  ...customService,
+                  description: e.target.value
+                };
+                
+                // Update the state
+                setEventData(stateUpdate);
+              }}
+              required
+              error={!customService.description.trim()}
+              helperText={!customService.description.trim() ? "Description is required" : ""}
+              placeholder={`Describe the ${categoryInfo?.label || 'service'}`}
+            />
+          </Grid>
+          
+          {/* Image Upload */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" gutterBottom>
+              {categoryInfo?.label || 'Service'} Image
+            </Typography>
+            <Box 
+              sx={{ 
+                border: '2px dashed', 
+                borderColor: 'divider', 
+                p: 3, 
+                borderRadius: 1,
+                textAlign: 'center',
+                cursor: 'pointer',
+                '&:hover': {
+                  bgcolor: 'action.hover'
+                }
+              }}
+              onClick={() => {
+                // Create a state update object
+                const stateUpdate = {
+                  ...eventData
+                } as any;
+                
+                // Update the image field
+                stateUpdate[customServiceField] = {
+                  ...customService,
+                  image: `https://via.placeholder.com/300x300?text=${categoryInfo?.label || 'Service'}+Image`
+                };
+                
+                // Update the state
+                setEventData(stateUpdate);
+              }}
+            >
+              <Typography variant="body1" gutterBottom>
+                Upload Image
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Click to add an image
+              </Typography>
+              </Box>
+          </Grid>
+          
+          {/* Display image if one is selected */}
+          {customService.image && (
+            <Grid item xs={12}>
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                <Box 
+                  sx={{ 
+                    position: 'relative',
+                    width: 150,
+                    height: 150,
+                    borderRadius: 2,
+                    overflow: 'hidden'
+                  }}
+                >
+                  <img 
+                    src={customService.image} 
+                    alt={`${categoryInfo?.label || 'Service'}`} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <IconButton
+                    size="small"
+                    sx={{ 
+                      position: 'absolute', 
+                      top: 0, 
+                      right: 0, 
+                      bgcolor: 'rgba(0,0,0,0.5)',
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: 'rgba(0,0,0,0.7)'
+                      }
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      
+                      // Create a state update object
+                      const stateUpdate = {
+                        ...eventData
+                      } as any;
+                      
+                      // Update the image field
+                      stateUpdate[customServiceField] = {
+                        ...customService,
+                        image: ''
+                      };
+                      
+                      // Update the state
+                      setEventData(stateUpdate);
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+              </Box>
+              </Box>
+            </Grid>
+          )}
+          
+          {/* Confirmation Buttons */}
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  // Create a state update object to disable custom mode
+                  const stateUpdate = {
+                    ...eventData
+                  } as any;
+                  
+                  // Disable custom mode
+                  stateUpdate[customFieldName] = false;
+                  
+                  // Update the state
+                  setEventData(stateUpdate);
+                }}
+              >
+                Cancel
+              </Button>
+              
+              <Button
+                variant="contained"
+                color="primary"
+                disabled={!customService.name.trim() || !customService.description.trim()}
+                onClick={() => {
+                  // Show confirmation message
+                  setSnackbarMessage(`Custom ${categoryInfo?.label || 'service'} has been confirmed!`);
+                  setSnackbarOpen(true);
+                  
+                  // Navigate back to services tab
+                  setActiveTab('services');
+                }}
+              >
+                Confirm {categoryInfo?.label || 'Service'}
+              </Button>
+              </Box>
+          </Grid>
+        </Grid>
+            </Paper>
+        );
   };
   
   return (
@@ -2522,9 +5398,12 @@ const CreateEventPage: React.FC = () => {
             </Tabs>
           </Paper>
           
+          {/* Always show the main content */}
           {getTabContent(activeTab)}
           
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+          {/* Only show main navigation buttons when NOT in provider selection mode */}
+          {!isSelectingProviderDates && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
             <Box>
             <Button
               variant="outlined"
@@ -2556,8 +5435,8 @@ const CreateEventPage: React.FC = () => {
                 variant="contained" 
                 onClick={handleSubmit}
                 disabled={
-                  !eventData.venueId || 
-                  !eventData.djId || 
+                  (!eventData.venueId && !eventData.useCustomVenue) || 
+                  (!eventData.djId && !eventData.useCustomDJ) || 
                   (eventData.isMultiDay ? 
                     !eventData.dateRange.start || !eventData.dateRange.end : 
                     eventData.isMultiSelect ?
@@ -2589,14 +5468,49 @@ const CreateEventPage: React.FC = () => {
                         !eventData.date
                     )
                   )) ||
-                  (activeTab === 'services' && (!eventData.venueId || !eventData.djId))
+                  (activeTab === 'services' && (!eventData.venueId && !eventData.useCustomVenue))
                 }
               >
                 {activeTab === 'services' ? 'Review & Book' : 'Next'}
               </Button>
             )}
           </Box>
+          )}
         </Box>
+        
+        {/* Provider Date Selection Modal Overlay */}
+        {isSelectingProviderDates && currentSelectingProvider && (
+          <Box 
+            sx={{ 
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 255, 255, 0.98)',
+              zIndex: 9999,
+              display: 'flex',
+              flexDirection: 'column',
+              padding: 2,
+              overflowY: 'auto'
+            }}
+          >
+            <Box 
+              sx={{ 
+                maxWidth: 'md', 
+                width: '100%', 
+                margin: '0 auto',
+                display: 'flex',
+                flexDirection: 'column',
+                flexGrow: 1
+              }}
+            >
+              <Box sx={{ flexGrow: 1 }}>
+                {getProviderDateSelectorTab()}
+              </Box>
+            </Box>
+          </Box>
+        )}
         
         {/* Save Draft Dialog */}
         <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)}>

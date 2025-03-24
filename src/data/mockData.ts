@@ -194,18 +194,28 @@ export interface Event {
   attendees: number;
   description: string;
   image: string;
+  capacity: number;
+  joinApprovalRequired?: boolean;
+  eventTags?: string[];
+  ticketPrice?: number;
+  creatorId: string;
+  creatorName: string;
+  location?: string;
+  time?: string;
 }
 
 // New interfaces for authentication
-export type UserRole = 'client' | 'venue' | 'dj' | 'caterer' | 'planner' | 'entertainment' | 'photography' | 'decoration' | 'audioVisual' | 'furniture' | 'barService' | 'security' | 'multiple';
+export type UserRole = 'eventOrganizer' | 'publicUser' | 'venue' | 'dj' | 'caterer' | 'entertainment' | 'photography' | 'decoration' | 'audioVisual' | 'furniture' | 'barService' | 'security' | 'multiple';
 
 export interface User {
   id: string;
+  uid?: string; // For Firebase compatibility
   username: string;
   email: string;
   password: string;
   role: UserRole;
   name: string;
+  displayName?: string; // For Firebase compatibility
   phone?: string;
   avatar?: string;
   eventsCreated?: number;
@@ -234,6 +244,31 @@ export interface User {
     insuranceCertificate?: string;
     otherDocuments?: string[];
   };
+}
+
+// New interface for event attendees
+export interface EventAttendee {
+  id: string;
+  eventId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  joinDate: string;
+  status: 'pending' | 'approved' | 'declined' | 'waitlisted';
+  attendanceConfirmed?: boolean;
+}
+
+// New interface for event ratings/reviews
+export interface EventRating {
+  id: string;
+  eventId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number; // 1-5 stars
+  review?: string;
+  date: string;
+  photos?: string[];
 }
 
 // Mock Data
@@ -709,7 +744,15 @@ export const events: Event[] = [
     isPublic: true,
     attendees: 120,
     description: 'Celebrate the longest day of the year with music, food, and amazing views!',
-    image: '/events/summersolstice.jpg'
+    image: '/events/summersolstice.jpg',
+    capacity: 150,
+    joinApprovalRequired: false,
+    eventTags: ['party', 'summer', 'rooftop'],
+    ticketPrice: 25,
+    creatorId: 'u1',
+    creatorName: 'Alex Johnson',
+    location: 'Downtown Tampa',
+    time: '8:00 PM - 1:00 AM'
   },
   {
     id: 'e2',
@@ -721,7 +764,15 @@ export const events: Event[] = [
     isPublic: true,
     attendees: 85,
     description: 'Latin rhythms and Italian cuisine by the beach - the perfect summer combination!',
-    image: '/events/beachfiesta.jpg'
+    image: '/events/beachfiesta.jpg',
+    capacity: 100,
+    joinApprovalRequired: true,
+    eventTags: ['beach', 'latin', 'dance'],
+    ticketPrice: 30,
+    creatorId: 'u3',
+    creatorName: 'DJ Salsa King',
+    location: 'St. Pete Beach',
+    time: '7:00 PM - 12:00 AM'
   },
   {
     id: 'e3',
@@ -733,7 +784,15 @@ export const events: Event[] = [
     isPublic: false,
     attendees: 200,
     description: 'A sophisticated evening of fine dining and dancing in our grand ballroom.',
-    image: '/events/gala.jpg'
+    image: '/events/gala.jpg',
+    capacity: 250,
+    joinApprovalRequired: true,
+    eventTags: ['gala', 'formal', 'charity'],
+    ticketPrice: 100,
+    creatorId: 'u2',
+    creatorName: 'Grand Ballroom',
+    location: 'Tampa Convention Center',
+    time: '6:30 PM - 11:00 PM'
   }
 ];
 
@@ -744,7 +803,7 @@ export const users: User[] = [
     username: 'alexjohnson',
     email: 'alex.johnson@example.com',
     password: 'password123',
-    role: 'client',
+    role: 'eventOrganizer',
     name: 'Alex Johnson',
     phone: '+1 (555) 123-4567',
     avatar: '/avatars/alex.jpg',
@@ -821,6 +880,28 @@ export const users: User[] = [
         lng: -82.4572
       }
     }
+  },
+  {
+    id: 'u5',
+    username: 'partygoer',
+    email: 'partygoer@example.com',
+    password: 'password123',
+    role: 'eventOrganizer',
+    name: 'Sam Partygoer',
+    phone: '+1 (555) 987-6543',
+    avatar: '/avatars/sam.jpg',
+    eventsCreated: 3,
+    eventsAttended: 42,
+    rating: 4.6,
+    reviews: 8,
+    badges: ['Event Explorer', 'Social Butterfly'],
+    location: {
+      address: 'Tampa, FL',
+      coordinates: {
+        lat: 27.9506,
+        lng: -82.4572
+      }
+    }
   }
 ];
 
@@ -832,6 +913,61 @@ export const audioVisual: AudioVisual[] = [];
 export const furniture: Furniture[] = [];
 export const barServices: BarService[] = [];
 export const security: Security[] = [];
+
+// Add mock event attendees
+export const eventAttendees: EventAttendee[] = [
+  {
+    id: 'ea1',
+    eventId: 'e1',
+    userId: 'u2',
+    userName: 'Maria Rodriguez',
+    userAvatar: '/avatars/maria.jpg',
+    joinDate: '2023-05-15T14:30:00Z',
+    status: 'approved'
+  },
+  {
+    id: 'ea2',
+    eventId: 'e1',
+    userId: 'u3',
+    userName: 'John Smith',
+    userAvatar: '/avatars/john.jpg',
+    joinDate: '2023-05-16T10:15:00Z',
+    status: 'approved'
+  },
+  {
+    id: 'ea3',
+    eventId: 'e2',
+    userId: 'u4',
+    userName: 'Sarah Williams',
+    userAvatar: '/avatars/sarah.jpg',
+    joinDate: '2023-05-20T09:45:00Z',
+    status: 'pending'
+  }
+];
+
+// Add mock event ratings
+export const eventRatings: EventRating[] = [
+  {
+    id: 'er1',
+    eventId: 'e1',
+    userId: 'u2',
+    userName: 'Maria Rodriguez',
+    userAvatar: '/avatars/maria.jpg',
+    rating: 5,
+    review: 'Amazing event! The venue was perfect and the DJ kept everyone dancing all night.',
+    date: '2023-06-22T10:30:00Z'
+  },
+  {
+    id: 'er2',
+    eventId: 'e1',
+    userId: 'u3',
+    userName: 'John Smith',
+    userAvatar: '/avatars/john.jpg',
+    rating: 4,
+    review: 'Great party, loved the music selection. Food was good but could have had more options.',
+    date: '2023-06-22T14:15:00Z'
+  }
+];
 
 // Helper function to calculate distance between two coordinates (in km)
 export const calculateDistance = (

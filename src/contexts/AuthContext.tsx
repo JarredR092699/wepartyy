@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   // Check if the current user is a vendor
-  const isVendor = currentUser?.role !== 'client';
+  const isVendor = currentUser?.role !== 'eventOrganizer' && currentUser?.role !== 'publicUser';
 
   // Login function
   const login = async (username: string, password: string) => {

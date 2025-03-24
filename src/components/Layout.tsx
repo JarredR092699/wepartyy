@@ -21,7 +21,8 @@ import {
   Search as SearchIcon,
   CalendarMonth as CalendarIcon,
   Message as MessageIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Celebration as CelebrationIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -73,7 +74,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, isVendor } = useAuth();
+  const { currentUser, isVendor, isAuthenticated } = useAuth();
   
   // Get unread message count (mock for now)
   const unreadMessageCount = 2;
@@ -110,7 +111,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch
       </Box>
       
       <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={3}>
-        {isVendor ? (
+        {isAuthenticated && isVendor ? (
           // Service Provider Navigation
           <BottomNavigation
             showLabels
@@ -153,8 +154,9 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch
             value={
               location.pathname === '/' ? 0 :
               location.pathname === '/my-events' ? 1 :
-              location.pathname === '/explore' ? 2 :
-              location.pathname === '/profile' ? 3 : 0
+              location.pathname === '/discover-events' ? 2 :
+              location.pathname === '/explore' ? 3 :
+              location.pathname === '/profile' ? 4 : 0
             }
           >
             <BottomNavigationAction 
@@ -166,6 +168,11 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch
               label="My Events" 
               icon={<EventIcon />} 
               onClick={() => navigate('/my-events')}
+            />
+            <BottomNavigationAction 
+              label="Discover" 
+              icon={<CelebrationIcon />} 
+              onClick={() => navigate('/discover-events')}
             />
             <BottomNavigationAction 
               label="Explore" 

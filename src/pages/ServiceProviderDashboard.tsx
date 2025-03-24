@@ -212,7 +212,7 @@ const CustomDay = (props: PickersDayProps<Date> & {
 
 const ServiceProviderDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, isVendor } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
@@ -220,6 +220,13 @@ const ServiceProviderDashboard: React.FC = () => {
   const [eventRequests, setEventRequests] = useState<EventRequest[]>(mockEventRequests);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [upcomingEvents, setUpcomingEvents] = useState(mockUpcomingEvents);
+  
+  // If not a vendor, redirect to homepage
+  useEffect(() => {
+    if (!isVendor) {
+      navigate('/');
+    }
+  }, [isVendor, navigate]);
   
   // Menu state
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);

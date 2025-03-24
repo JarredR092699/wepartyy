@@ -14,6 +14,9 @@ import ManageServicesPage from './pages/ManageServicesPage';
 import MessagesPage from './pages/MessagesPage';
 import VendorVerificationPage from './pages/VendorVerificationPage';
 import ServiceProviderDashboard from './pages/ServiceProviderDashboard';
+import DiscoverEventsPage from './pages/DiscoverEventsPage';
+import PaymentPage from './pages/PaymentPage';
+import EventDetailsPage from './pages/EventDetailsPage';
 
 // Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -33,7 +36,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const HomeRoute = () => {
   const { currentUser, isAuthenticated } = useAuth();
   
-  if (isAuthenticated && currentUser && currentUser.role !== 'client') {
+  if (isAuthenticated && currentUser && currentUser.role !== 'eventOrganizer' && currentUser.role !== 'publicUser') {
     return <Navigate to="/service-dashboard" />;
   }
   
@@ -58,6 +61,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/explore" element={<ExplorePage />} />
+      <Route path="/discover-events" element={<DiscoverEventsPage />} />
       <Route path="/profile" element={
         <ProtectedRoute>
           <ProfilePage />
@@ -83,6 +87,12 @@ function AppRoutes() {
           <ServiceProviderDashboard />
         </ProtectedRoute>
       } />
+      <Route path="/payment" element={
+        <ProtectedRoute>
+          <PaymentPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/event/:eventId" element={<EventDetailsPage />} />
     </Routes>
   );
 }
