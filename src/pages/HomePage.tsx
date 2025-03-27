@@ -21,7 +21,8 @@ import {
   ArrowForward as ArrowForwardIcon,
   LocationOn as LocationIcon,
   Star as StarIcon,
-  Recommend as RecommendIcon
+  Recommend as RecommendIcon,
+  LocalOffer as LocalOfferIcon
 } from '@mui/icons-material';
 import Layout from '../components/Layout';
 import EventCard from '../components/EventCard';
@@ -45,15 +46,6 @@ const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser, isAuthenticated } = useAuth();
   const [serviceTab, setServiceTab] = useState<number>(0);
-  const [viewMode, setViewMode] = useState<'events' | 'services'>('events'); // Default to events view
-  
-  // Filter only public events for different sections
-  const publicEvents = events.filter(event => event.isPublic);
-  
-  // Sort events by different criteria
-  const recommendedEvents = [...publicEvents].sort(() => Math.random() - 0.5).slice(0, 4); // Random for mock
-  const topRatedEvents = [...publicEvents].sort((a, b) => (b.attendees || 0) - (a.attendees || 0)).slice(0, 4);
-  const nearbyEvents = [...publicEvents].sort(() => Math.random() - 0.5).slice(0, 4); // Random for mock
   
   // Service categories
   const serviceCategories = [
@@ -90,52 +82,6 @@ const HomePage: React.FC = () => {
     setServiceTab(newValue);
   };
   
-  // View Toggle component for non-logged-in users
-  const ViewToggle = () => (
-    <Box sx={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      mt: 4, 
-      mb: 2,
-      borderRadius: 2,
-      overflow: 'hidden',
-      border: '1px solid',
-      borderColor: 'divider',
-      width: '100%', 
-      maxWidth: '400px', 
-      mx: 'auto' 
-    }}>
-      <Button 
-        fullWidth
-        variant={viewMode === 'events' ? 'contained' : 'text'}
-        onClick={() => setViewMode('events')}
-        startIcon={<CelebrationIcon />}
-        sx={{ 
-          py: 1.5, 
-          borderRadius: 0,
-          backgroundColor: viewMode === 'events' ? 'primary.main' : 'transparent',
-          color: viewMode === 'events' ? 'white' : 'text.primary',
-        }}
-      >
-        Discover Events
-      </Button>
-      <Button
-        fullWidth
-        variant={viewMode === 'services' ? 'contained' : 'text'}
-        onClick={() => setViewMode('services')}
-        startIcon={<SearchIcon />}
-        sx={{ 
-          py: 1.5, 
-          borderRadius: 0,
-          backgroundColor: viewMode === 'services' ? 'primary.main' : 'transparent',
-          color: viewMode === 'services' ? 'white' : 'text.primary',
-        }}
-      >
-        Find Services
-      </Button>
-    </Box>
-  );
-  
   // Section Header component
   const SectionHeader = ({ icon, title }: { icon: React.ReactNode, title: string }) => (
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, mt: 4 }}>
@@ -146,7 +92,7 @@ const HomePage: React.FC = () => {
       <Box sx={{ flexGrow: 1 }} />
       <Button 
         endIcon={<ArrowForwardIcon />}
-        onClick={() => navigate(isEventOrganizer || (!isAuthenticated && viewMode === 'services') ? '/find-service' : '/discover-events')}
+        onClick={() => navigate('/find-service')}
         size="small"
       >
         View All
@@ -202,140 +148,80 @@ const HomePage: React.FC = () => {
               variant="outlined" 
               size="large" 
               fullWidth
-              startIcon={<CelebrationIcon />}
-              onClick={() => navigate('/discover-events')}
+              startIcon={<LocalOfferIcon />}
+              onClick={() => {}}
               sx={{ py: 1.5 }}
             >
-              Discover Public Events
+              Discover Our Packages
             </Button>
           </Box>
         </Box>
         
-        {/* View Mode Toggle - only show for non-logged in users */}
-        {!isAuthenticated && <ViewToggle />}
+        {/* Service content - always show */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 4 }}>
+          <Tabs 
+            value={serviceTab} 
+            onChange={handleTabChange} 
+            variant="scrollable"
+            scrollButtons="auto"
+            aria-label="service categories"
+          >
+            {serviceCategories.map((category, index) => (
+              <Tab key={index} label={category.label} />
+            ))}
+          </Tabs>
+        </Box>
         
-        {/* Content based on view mode and user role */}
-        {(isEventOrganizer || (!isAuthenticated && viewMode === 'services')) ? (
-          // Event Organizer View - Services
-          <>
-            {/* Service Category Tabs */}
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 4 }}>
-              <Tabs 
-                value={serviceTab} 
-                onChange={handleTabChange} 
-                variant="scrollable"
-                scrollButtons="auto"
-                aria-label="service categories"
-              >
-                {serviceCategories.map((category, index) => (
-                  <Tab key={index} label={category.label} />
-                ))}
-              </Tabs>
-            </Box>
-            
-            {/* Recommended Services */}
-            <SectionHeader 
-              icon={<RecommendIcon color="primary" />} 
-              title={`Recommended ${currentServiceCategory.label}`} 
-            />
-            <Grid container spacing={2}>
-              {recommendedServices.map((service) => (
-                <Grid item xs={12} sm={6} md={3} key={service.id}>
-                  <ServiceCard 
-                    service={service} 
-                    type={currentServiceCategory.value as any}
-                    onClick={() => navigate(`/service/${currentServiceCategory.value}/${service.id}`)} 
-                  />
-                </Grid>
-              ))}
+        {/* Recommended Services */}
+        <SectionHeader 
+          icon={<RecommendIcon color="primary" />} 
+          title={`Recommended ${currentServiceCategory.label}`} 
+        />
+        <Grid container spacing={2}>
+          {recommendedServices.map((service) => (
+            <Grid item xs={12} sm={6} md={3} key={service.id}>
+              <ServiceCard 
+                service={service} 
+                type={currentServiceCategory.value as any}
+                onClick={() => navigate(`/service/${currentServiceCategory.value}/${service.id}`)} 
+              />
             </Grid>
-            
-            {/* Top Rated Services */}
-            <SectionHeader 
-              icon={<StarIcon color="primary" />} 
-              title={`Top Rated ${currentServiceCategory.label}`} 
-            />
-            <Grid container spacing={2}>
-              {topRatedServices.map((service) => (
-                <Grid item xs={12} sm={6} md={3} key={service.id}>
-                  <ServiceCard 
-                    service={service} 
-                    type={currentServiceCategory.value as any}
-                    onClick={() => navigate(`/service/${currentServiceCategory.value}/${service.id}`)} 
-                  />
-                </Grid>
-              ))}
+          ))}
+        </Grid>
+        
+        {/* Top Rated Services */}
+        <SectionHeader 
+          icon={<StarIcon color="primary" />} 
+          title={`Top Rated ${currentServiceCategory.label}`} 
+        />
+        <Grid container spacing={2}>
+          {topRatedServices.map((service) => (
+            <Grid item xs={12} sm={6} md={3} key={service.id}>
+              <ServiceCard 
+                service={service} 
+                type={currentServiceCategory.value as any}
+                onClick={() => navigate(`/service/${currentServiceCategory.value}/${service.id}`)} 
+              />
             </Grid>
-            
-            {/* Nearby Services */}
-            <SectionHeader 
-              icon={<LocationIcon color="primary" />} 
-              title={`${currentServiceCategory.label} Near You`} 
-            />
-            <Grid container spacing={2}>
-              {nearbyServices.map((service) => (
-                <Grid item xs={12} sm={6} md={3} key={service.id}>
-                  <ServiceCard 
-                    service={service} 
-                    type={currentServiceCategory.value as any}
-                    onClick={() => navigate(`/service/${currentServiceCategory.value}/${service.id}`)} 
-                  />
-                </Grid>
-              ))}
+          ))}
+        </Grid>
+        
+        {/* Nearby Services */}
+        <SectionHeader 
+          icon={<LocationIcon color="primary" />} 
+          title={`${currentServiceCategory.label} Near You`} 
+        />
+        <Grid container spacing={2} sx={{ mb: 4 }}>
+          {nearbyServices.map((service) => (
+            <Grid item xs={12} sm={6} md={3} key={service.id}>
+              <ServiceCard 
+                service={service} 
+                type={currentServiceCategory.value as any}
+                onClick={() => navigate(`/service/${currentServiceCategory.value}/${service.id}`)} 
+              />
             </Grid>
-          </>
-        ) : (
-          // Public User View - Events
-          <>
-            {/* Recommended Events */}
-            <SectionHeader 
-              icon={<RecommendIcon color="primary" />} 
-              title="Recommended Events" 
-            />
-            <Grid container spacing={2}>
-              {recommendedEvents.map((event) => (
-                <Grid item xs={12} sm={6} md={3} key={event.id}>
-                  <EventCard 
-                    event={event} 
-                    onClick={() => navigate(`/events/${event.id}`)}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-            
-            {/* Top Rated Events */}
-            <SectionHeader 
-              icon={<StarIcon color="primary" />} 
-              title="Most Popular Events" 
-            />
-            <Grid container spacing={2}>
-              {topRatedEvents.map((event) => (
-                <Grid item xs={12} sm={6} md={3} key={event.id}>
-                  <EventCard 
-                    event={event} 
-                    onClick={() => navigate(`/events/${event.id}`)}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-            
-            {/* Nearby Events */}
-            <SectionHeader 
-              icon={<LocationIcon color="primary" />} 
-              title="Events Near You" 
-            />
-            <Grid container spacing={2} sx={{ mb: 4 }}>
-              {nearbyEvents.map((event) => (
-                <Grid item xs={12} sm={6} md={3} key={event.id}>
-                  <EventCard 
-                    event={event} 
-                    onClick={() => navigate(`/events/${event.id}`)}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          </>
-        )}
+          ))}
+        </Grid>
       </Container>
     </Layout>
   );

@@ -14,7 +14,6 @@ import ManageServicesPage from './pages/ManageServicesPage';
 import MessagesPage from './pages/MessagesPage';
 import VendorVerificationPage from './pages/VendorVerificationPage';
 import ServiceProviderDashboard from './pages/ServiceProviderDashboard';
-import DiscoverEventsPage from './pages/DiscoverEventsPage';
 import PaymentPage from './pages/PaymentPage';
 import EventDetailsPage from './pages/EventDetailsPage';
 
@@ -61,7 +60,6 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/explore" element={<ExplorePage />} />
-      <Route path="/discover-events" element={<DiscoverEventsPage />} />
       <Route path="/profile" element={
         <ProtectedRoute>
           <ProfilePage />
