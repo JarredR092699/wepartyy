@@ -154,9 +154,8 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch
             value={
               location.pathname === '/' ? 0 :
               location.pathname === '/my-events' ? 1 :
-              location.pathname === '/find-service' ? 2 :
-              location.pathname === '/explore' ? 3 :
-              location.pathname === '/profile' ? 4 : 0
+              location.pathname === '/messages' ? 2 :
+              location.pathname === '/profile' ? 3 : 0
             }
           >
             <BottomNavigationAction 
@@ -170,14 +169,13 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch
               onClick={() => navigate('/my-events')}
             />
             <BottomNavigationAction 
-              label="Services" 
-              icon={<SearchIcon />} 
-              onClick={() => navigate('/find-service')}
-            />
-            <BottomNavigationAction 
-              label="Explore" 
-              icon={<ExploreIcon />} 
-              onClick={() => navigate('/explore')}
+              label="Messages" 
+              icon={
+                <Badge badgeContent={unreadMessageCount} color="error">
+                  <MessageIcon />
+                </Badge>
+              }
+              onClick={() => navigate('/messages')}
             />
             <BottomNavigationAction 
               label="Profile" 
