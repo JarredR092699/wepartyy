@@ -51,14 +51,6 @@ const EventCard: React.FC<EventCardProps> = ({ event, onClick }) => {
           <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
             {event.attendees} attendees
           </Typography>
-          {event.isPublic && (
-            <Chip 
-              label="Public" 
-              size="small" 
-              color="primary" 
-              sx={{ height: 20, fontSize: '0.7rem' }} 
-            />
-          )}
         </Box>
         
         <Typography 

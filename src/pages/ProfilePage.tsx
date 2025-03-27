@@ -36,12 +36,12 @@ import {
   Star as StarIcon,
   Settings as SettingsIcon,
   ExitToApp as LogoutIcon,
-  CalendarMonth as CalendarIcon,
   LocationOn as LocationIcon,
   Add as AddIcon,
   Edit as EditIcon,
   PhotoCamera as PhotoCameraIcon,
-  VerifiedUser as VerifiedIcon
+  VerifiedUser as VerifiedIcon,
+  Favorite as FavoriteIcon
 } from '@mui/icons-material';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
@@ -49,13 +49,6 @@ import { useAuth } from '../contexts/AuthContext';
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser, logout, updateUserProfile, isVendor } = useAuth();
-  
-  const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
-  const [calendarUrl, setCalendarUrl] = useState('');
-  const [calendarType, setCalendarType] = useState<'google' | 'ical'>(
-    currentUser?.calendarType || 'google'
-  );
-  const [calendarError, setCalendarError] = useState<string | null>(null);
   
   const [maxTravelDistance, setMaxTravelDistance] = useState<number>(
     currentUser?.maxTravelDistance || 30
@@ -80,41 +73,6 @@ const ProfilePage: React.FC = () => {
   const handleLogout = () => {
     logout();
     navigate('/');
-  };
-  
-  const handleOpenCalendarDialog = () => {
-    setCalendarDialogOpen(true);
-    setCalendarUrl(currentUser?.calendarUrl || '');
-    setCalendarType(currentUser?.calendarType || 'google');
-  };
-  
-  const handleCloseCalendarDialog = () => {
-    setCalendarDialogOpen(false);
-    setCalendarError(null);
-  };
-  
-  const handleConnectCalendar = () => {
-    setCalendarError(null);
-    
-    if (!calendarUrl) {
-      setCalendarError('Please enter a calendar URL');
-      return;
-    }
-    
-    updateUserProfile({
-      calendarConnected: true,
-      calendarType,
-      calendarUrl
-    });
-    
-    setCalendarDialogOpen(false);
-  };
-  
-  const handleDisconnectCalendar = () => {
-    updateUserProfile({
-      calendarConnected: false,
-      calendarUrl: ''
-    });
   };
   
   const handleOpenTravelDistanceDialog = () => {
@@ -373,51 +331,6 @@ const ProfilePage: React.FC = () => {
         {isVendor && (
           <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
             <Typography variant="h6" gutterBottom>
-              Calendar Integration
-            </Typography>
-            
-            {currentUser.calendarConnected ? (
-              <>
-                <Alert severity="success" sx={{ mb: 2 }}>
-                  Your {currentUser.calendarType === 'google' ? 'Google Calendar' : 'iCal'} is connected
-                </Alert>
-                
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Automatic availability sync is enabled
-                  </Typography>
-                  
-                  <Button 
-                    variant="outlined" 
-                    color="error" 
-                    size="small"
-                    onClick={handleDisconnectCalendar}
-                  >
-                    Disconnect
-                  </Button>
-                </Box>
-              </>
-            ) : (
-              <>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  Connect your calendar to automatically sync your availability
-                </Alert>
-                
-                <Button 
-                  variant="contained" 
-                  startIcon={<CalendarIcon />}
-                  onClick={handleOpenCalendarDialog}
-                >
-                  Connect Calendar
-                </Button>
-              </>
-            )}
-          </Paper>
-        )}
-        
-        {isVendor && (currentUser.role === 'dj' || currentUser.role === 'caterer') && (
-          <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
-            <Typography variant="h6" gutterBottom>
               Travel Distance
             </Typography>
             
@@ -467,13 +380,25 @@ const ProfilePage: React.FC = () => {
               <ListItemText primary={isVendor ? "Manage Services" : "Manage Events"} />
             </ListItemButton>
             
+            {!isVendor && (
+              <ListItemButton 
+                disableGutters 
+                onClick={() => navigate('/favorites')}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <FavoriteIcon />
+                </ListItemIcon>
+                <ListItemText primary="My Favorites" />
+              </ListItemButton>
+            )}
+            
             {isVendor && (
               <ListItemButton 
                 disableGutters 
                 onClick={() => navigate('/service-dashboard')}
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
-                  <CalendarIcon />
+                  <EventIcon />
                 </ListItemIcon>
                 <ListItemText primary="Service Provider Dashboard" />
               </ListItemButton>
@@ -534,53 +459,6 @@ const ProfilePage: React.FC = () => {
         >
           Logout
         </Button>
-        
-        <Dialog open={calendarDialogOpen} onClose={handleCloseCalendarDialog} maxWidth="sm" fullWidth>
-          <DialogTitle>Connect Your Calendar</DialogTitle>
-          <DialogContent>
-            {calendarError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {calendarError}
-              </Alert>
-            )}
-            
-            <Typography variant="body2" color="text.secondary" paragraph>
-              Connect your calendar to automatically sync your availability. When you're booked in your calendar, you'll be shown as unavailable in the app.
-            </Typography>
-            
-            <Box sx={{ mb: 2 }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={calendarType === 'google'}
-                    onChange={() => setCalendarType(calendarType === 'google' ? 'ical' : 'google')}
-                    color="primary"
-                  />
-                }
-                label={`${calendarType === 'google' ? 'Google Calendar' : 'iCal'}`}
-              />
-            </Box>
-            
-            <TextField
-              fullWidth
-              label={calendarType === 'google' ? 'Google Calendar ID' : 'iCal URL'}
-              value={calendarUrl}
-              onChange={(e) => setCalendarUrl(e.target.value)}
-              placeholder={calendarType === 'google' ? 'your_email@gmail.com' : 'https://...'}
-              margin="normal"
-            />
-            
-            <Typography variant="caption" color="text.secondary">
-              {calendarType === 'google' 
-                ? 'You can find your Calendar ID in your Google Calendar settings.' 
-                : 'You can find your iCal URL in your calendar app settings.'}
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseCalendarDialog}>Cancel</Button>
-            <Button onClick={handleConnectCalendar} variant="contained">Connect</Button>
-          </DialogActions>
-        </Dialog>
         
         <Dialog open={travelDistanceDialogOpen} onClose={handleCloseTravelDistanceDialog} maxWidth="sm" fullWidth>
           <DialogTitle>Set Maximum Travel Distance</DialogTitle>

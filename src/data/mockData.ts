@@ -244,6 +244,8 @@ export interface User {
     insuranceCertificate?: string;
     otherDocuments?: string[];
   };
+  // Service provider related fields
+  selectedServices?: UserRole[]; // For providers offering multiple services
 }
 
 // New interface for event attendees
@@ -969,24 +971,32 @@ export const eventRatings: EventRating[] = [
   }
 ];
 
-// Helper function to calculate distance between two coordinates (in km)
-export const calculateDistance = (
-  lat1: number, 
-  lng1: number, 
-  lat2: number, 
-  lng2: number
-): number => {
-  const R = 6371; // Radius of the earth in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lng2 - lng1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-  const d = R * c; // Distance in km
-  return d;
-};
+// Calculate distance between two points using Haversine formula
+export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  try {
+    if (!lat1 || !lon1 || !lat2 || !lon2) {
+      return 999; // Default value if coordinates are missing
+    }
+    
+    // Convert degrees to radians
+    const toRad = (x: number) => x * Math.PI / 180;
+    
+    const R = 6371; // Radius of the earth in km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const d = R * c; // Distance in km
+    
+    return Math.round(d * 10) / 10; // Round to 1 decimal place
+  } catch (error) {
+    console.error("Error calculating distance:", error);
+    return 999; // Default value if calculation fails
+  }
+}
 
 // Function to filter DJs based on their maximum travel distance from a venue
 export const filterDJsByTravelDistance = (venueId: string): DJ[] => {

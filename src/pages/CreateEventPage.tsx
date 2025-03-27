@@ -302,7 +302,6 @@ const CreateEventPage: React.FC = () => {
     selectedDates: [] as Date[],
     isMultiDay: false,
     isMultiSelect: false,
-    isPublic: false,
     venueId: '',
     useCustomVenue: false,
     customVenue: {
@@ -1951,15 +1950,7 @@ const CreateEventPage: React.FC = () => {
             />
             
             <FormGroup sx={{ mt: 2 }}>
-              <FormControlLabel 
-                control={
-                  <Checkbox 
-                    checked={eventData.isPublic} 
-                    onChange={(e) => handleChange('isPublic', e.target.checked)} 
-                  />
-                } 
-                label="Make this event public (visible in featured events)" 
-              />
+              {/* Removed the isPublic checkbox as there's no public/private distinction anymore */}
             </FormGroup>
             </Paper>
             
@@ -2492,15 +2483,15 @@ const CreateEventPage: React.FC = () => {
                   }
                   
                   return (
-                    <Grid item xs={12} sm={6} key={venue.id}>
-                      <Card 
-                        sx={{ 
-                          border: eventData.venueId === venue.id ? 2 : 0,
-                          borderColor: 'primary.main',
-                        }}
-                      >
+                <Grid item xs={12} sm={6} key={venue.id}>
+                  <Card 
+                    sx={{ 
+                      border: eventData.venueId === venue.id ? 2 : 0,
+                      borderColor: 'primary.main',
+                    }}
+                  >
                         <CardActionArea onClick={() => handleServiceSelect('venue', venue.id)}>
-                          <ServiceCard service={venue} type="venue" />
+                      <ServiceCard service={venue} type="venue" />
                           {/* Add badges for selected dates if applicable */}
                           {providerSpecificDates[venue.id] && (
                             <Box sx={{ p: 1, bgcolor: 'primary.light', color: 'white' }}>
@@ -2514,9 +2505,9 @@ const CreateEventPage: React.FC = () => {
                               </Typography>
                             </Box>
                           )}
-                        </CardActionArea>
-                      </Card>
-                    </Grid>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
                   );
                 }).filter(Boolean)}
             </Grid>
@@ -2699,7 +2690,7 @@ const CreateEventPage: React.FC = () => {
                           </Box>
                         ))}
                       </Box>
-                    </Grid>
+            </Grid>
                   )}
                   
                   {/* Add confirmation buttons */}
@@ -2743,6 +2734,7 @@ const CreateEventPage: React.FC = () => {
                 variant="outlined" 
                 startIcon={<ArrowBackIcon />} 
                 onClick={() => setActiveTab('services')}
+                sx={{ mr: 1 }}
               >
                 Back to Services
               </Button>
@@ -2897,15 +2889,15 @@ const CreateEventPage: React.FC = () => {
                   }
                   
                   return (
-                    <Grid item xs={12} sm={6} key={dj.id}>
-                      <Card 
-                        sx={{ 
-                          border: eventData.djId === dj.id ? 2 : 0,
-                          borderColor: 'primary.main',
-                        }}
-                      >
+                <Grid item xs={12} sm={6} key={dj.id}>
+                  <Card 
+                    sx={{ 
+                      border: eventData.djId === dj.id ? 2 : 0,
+                      borderColor: 'primary.main',
+                    }}
+                  >
                         <CardActionArea onClick={() => handleServiceSelect('dj', dj.id)}>
-                          <ServiceCard service={dj} type="dj" />
+                      <ServiceCard service={dj} type="dj" />
                           {/* Add badges for selected dates if applicable */}
                           {providerSpecificDates[dj.id] && (
                             <Box sx={{ p: 1, bgcolor: 'primary.light', color: 'white' }}>
@@ -2919,9 +2911,9 @@ const CreateEventPage: React.FC = () => {
                               </Typography>
                             </Box>
                           )}
-                        </CardActionArea>
-                      </Card>
-                    </Grid>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
                   );
                 }).filter(Boolean)}
             </Grid>
@@ -3128,7 +3120,7 @@ const CreateEventPage: React.FC = () => {
                           </IconButton>
                         </Box>
                       </Box>
-                    </Grid>
+            </Grid>
                   )}
                   
                   {/* Add confirmation buttons */}
@@ -3152,14 +3144,14 @@ const CreateEventPage: React.FC = () => {
                         disabled={!eventData.customDJ.name.trim() || eventData.customDJ.genres.length === 0}
                         onClick={() => {
                           // Show confirmation message
-                          setSnackbarMessage('Custom DJ has been confirmed!');
+                          setSnackbarMessage('Custom DJ has been added to your event!');
                           setSnackbarOpen(true);
                           
                           // Navigate back to services tab
                           setActiveTab('services');
                         }}
                       >
-                        Confirm DJ
+                        Add DJ to Event
                       </Button>
                     </Box>
                   </Grid>
@@ -3172,6 +3164,7 @@ const CreateEventPage: React.FC = () => {
                 variant="outlined" 
                 startIcon={<ArrowBackIcon />} 
                 onClick={() => setActiveTab('services')}
+                sx={{ mr: 1 }}
               >
                 Back to Services
               </Button>
@@ -3593,14 +3586,14 @@ const CreateEventPage: React.FC = () => {
                         disabled={!eventData.customCatering.name.trim() || eventData.customCatering.cuisineTypes.length === 0}
                         onClick={() => {
                           // Show confirmation message
-                          setSnackbarMessage('Custom catering has been confirmed!');
+                          setSnackbarMessage('Custom catering has been added to your event!');
                           setSnackbarOpen(true);
                           
                           // Navigate back to services tab
                           setActiveTab('services');
                         }}
                       >
-                        Confirm Catering
+                        Add Catering to Event
                       </Button>
                     </Box>
                   </Grid>
@@ -3613,6 +3606,7 @@ const CreateEventPage: React.FC = () => {
                 variant="outlined" 
                 startIcon={<ArrowBackIcon />} 
                 onClick={() => setActiveTab('services')}
+                sx={{ mr: 1 }}
               >
                 Back to Services
               </Button>
@@ -4104,6 +4098,7 @@ const CreateEventPage: React.FC = () => {
                 variant="outlined" 
                 startIcon={<ArrowBackIcon />} 
                 onClick={() => setActiveTab('services')}
+                sx={{ mr: 1 }}
               >
                 Back to Services
               </Button>
@@ -4176,7 +4171,7 @@ const CreateEventPage: React.FC = () => {
                     Event Type
                   </Typography>
               <Typography variant="body1" gutterBottom>
-                    {eventData.isPublic ? 'Public Event' : 'Private Event'}
+                    Standard Event
               </Typography>
                 </Grid>
                 
@@ -5087,76 +5082,9 @@ const CreateEventPage: React.FC = () => {
       eventData.customVenue.capacity > 0
     );
     
-    // No longer requiring DJ, but if custom DJ is used, it should have required fields filled
-    const hasDJ = !eventData.useCustomDJ || (
-      eventData.useCustomDJ && 
-      eventData.customDJ.name.trim() !== '' && 
-      eventData.customDJ.genres.length > 0
-    );
-    
-    // If custom catering is used, it should have required fields filled
-    const hasCatering = !eventData.useCustomCatering || (
-      eventData.useCustomCatering && 
-      eventData.customCatering.name.trim() !== '' && 
-      eventData.customCatering.cuisineTypes.length > 0
-    );
-    
-    // For remaining services, just check that name and description are filled if custom is selected
-    const hasEntertainment = !eventData.useCustomEntertainment || (
-      eventData.useCustomEntertainment && 
-      eventData.customEntertainment.name.trim() !== '' && 
-      eventData.customEntertainment.description.trim() !== ''
-    );
-    
-    const hasPhotography = !eventData.useCustomPhotography || (
-      eventData.useCustomPhotography && 
-      eventData.customPhotography.name.trim() !== '' && 
-      eventData.customPhotography.description.trim() !== ''
-    );
-    
-    const hasDecoration = !eventData.useCustomDecoration || (
-      eventData.useCustomDecoration && 
-      eventData.customDecoration.name.trim() !== '' && 
-      eventData.customDecoration.description.trim() !== ''
-    );
-    
-    const hasAudioVisual = !eventData.useCustomAudioVisual || (
-      eventData.useCustomAudioVisual && 
-      eventData.customAudioVisual.name.trim() !== '' && 
-      eventData.customAudioVisual.description.trim() !== ''
-    );
-    
-    const hasFurniture = !eventData.useCustomFurniture || (
-      eventData.useCustomFurniture && 
-      eventData.customFurniture.name.trim() !== '' && 
-      eventData.customFurniture.description.trim() !== ''
-    );
-    
-    const hasBarService = !eventData.useCustomBarService || (
-      eventData.useCustomBarService && 
-      eventData.customBarService.name.trim() !== '' && 
-      eventData.customBarService.description.trim() !== ''
-    );
-    
-    const hasSecurity = !eventData.useCustomSecurity || (
-      eventData.useCustomSecurity && 
-      eventData.customSecurity.name.trim() !== '' && 
-      eventData.customSecurity.description.trim() !== ''
-    );
-    
-    // Only venue is required, other custom service validation is for form completeness only
-    return hasVenue && hasDJ && hasCatering && hasEntertainment && hasPhotography && 
-           hasDecoration && hasAudioVisual && hasFurniture && hasBarService && hasSecurity;
-  }, [eventData.venueId, eventData.useCustomVenue, eventData.customVenue, 
-      eventData.useCustomDJ, eventData.customDJ,
-      eventData.useCustomCatering, eventData.customCatering,
-      eventData.useCustomEntertainment, eventData.customEntertainment,
-      eventData.useCustomPhotography, eventData.customPhotography,
-      eventData.useCustomDecoration, eventData.customDecoration,
-      eventData.useCustomAudioVisual, eventData.customAudioVisual,
-      eventData.useCustomFurniture, eventData.customFurniture,
-      eventData.useCustomBarService, eventData.customBarService,
-      eventData.useCustomSecurity, eventData.customSecurity]);
+    // Only venue is required now, other services are optional
+    return hasVenue;
+  }, [eventData.venueId, eventData.useCustomVenue, eventData.customVenue]);
   
   // Generic custom service form for remaining services (entertainment, photography, decoration, etc.)
   const getCustomServiceForm = (tabId: string) => {
@@ -5404,77 +5332,121 @@ const CreateEventPage: React.FC = () => {
           {/* Only show main navigation buttons when NOT in provider selection mode */}
           {!isSelectingProviderDates && (
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-            <Box>
-            <Button
-              variant="outlined"
-                disabled={activeTab === 'dates'}
-                onClick={() => {
-                  if (activeTab === 'services') {
-                    setActiveTab('dates');
-                  } else if (activeTab === 'review') {
-                    setActiveTab('services');
-                  }
-                }}
-              startIcon={<ArrowBackIcon />}
-                sx={{ mr: 1 }}
-            >
-              Back
-            </Button>
-            
-              <Button
-                variant="outlined"
-                onClick={handleSaveDraft}
-                startIcon={<SaveIcon />}
-              >
-                Save Draft
-              </Button>
-            </Box>
-            
-            {activeTab === 'review' ? (
-              <Button 
-                variant="contained" 
-                onClick={handleSubmit}
-                disabled={
-                  (!eventData.venueId && !eventData.useCustomVenue) || 
-                  (!eventData.djId && !eventData.useCustomDJ) || 
-                  (eventData.isMultiDay ? 
-                    !eventData.dateRange.start || !eventData.dateRange.end : 
-                    eventData.isMultiSelect ?
-                      eventData.selectedDates.length === 0 :
-                      !eventData.date
-                  )
-                }
-              >
-                Book Now
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={() => {
-                  if (activeTab === 'dates') {
-                    setActiveTab('services');
-                  } else if (activeTab === 'services') {
-                    setActiveTab('review');
-                  }
-                }}
-                endIcon={<ArrowForwardIcon />}
-                disabled={
-                  (activeTab === 'dates' && (
-                    !eventData.name || 
+              {/* 
+                Navigation buttons for event creation process:
+                - Back button: navigates to previous step or back to services from service-specific tabs
+                - Next button: navigates to next step or back to services from service-specific tabs
+                - Button labels change based on current tab to clearly indicate destination
+              */}
+              <Box>
+                <Button
+                  variant="outlined"
+                  disabled={activeTab === 'dates'}
+                  onClick={() => {
+                    if (activeTab === 'services') {
+                      setActiveTab('dates');
+                    } else if (activeTab === 'review') {
+                      setActiveTab('services');
+                    } else if (
+                      activeTab === 'dj' || 
+                      activeTab === 'catering' ||
+                      activeTab === 'entertainment' ||
+                      activeTab === 'photography' ||
+                      activeTab === 'decoration' ||
+                      activeTab === 'audioVisual' ||
+                      activeTab === 'furniture' ||
+                      activeTab === 'barService' ||
+                      activeTab === 'security' ||
+                      activeTab === 'venue'
+                    ) {
+                      setActiveTab('services');
+                    }
+                  }}
+                  startIcon={<ArrowBackIcon />}
+                  sx={{ mr: 1 }}
+                >
+                  {activeTab === 'review' ? 'Back to Services' : 
+                   (activeTab === 'services' ? 'Back to Dates' : 'Back to Services')}
+                </Button>
+                
+                <Button
+                  variant="outlined"
+                  onClick={handleSaveDraft}
+                  startIcon={<SaveIcon />}
+                >
+                  Save Draft
+                </Button>
+              </Box>
+              
+              {activeTab === 'review' ? (
+                <Button 
+                  variant="contained" 
+                  onClick={handleSubmit}
+                  disabled={
+                    (!eventData.venueId && !eventData.useCustomVenue) || 
                     (eventData.isMultiDay ? 
                       !eventData.dateRange.start || !eventData.dateRange.end : 
                       eventData.isMultiSelect ?
                         eventData.selectedDates.length === 0 :
                         !eventData.date
                     )
-                  )) ||
-                  (activeTab === 'services' && (!eventData.venueId && !eventData.useCustomVenue))
-                }
-              >
-                {activeTab === 'services' ? 'Review & Book' : 'Next'}
-              </Button>
-            )}
-          </Box>
+                  }
+                >
+                  Create Event
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    if (activeTab === 'dates') {
+                      setActiveTab('services');
+                    } else if (activeTab === 'services') {
+                      setActiveTab('review');
+                    } else if (
+                      activeTab === 'dj' || 
+                      activeTab === 'catering' ||
+                      activeTab === 'entertainment' ||
+                      activeTab === 'photography' ||
+                      activeTab === 'decoration' ||
+                      activeTab === 'audioVisual' ||
+                      activeTab === 'furniture' ||
+                      activeTab === 'barService' ||
+                      activeTab === 'security' ||
+                      activeTab === 'venue'
+                    ) {
+                      // For service-specific tabs, always navigate back to services
+                      setActiveTab('services');
+                    }
+                  }}
+                  endIcon={<ArrowForwardIcon />}
+                  disabled={
+                    (activeTab === 'dates' && (
+                      !eventData.name || 
+                      (eventData.isMultiDay ? 
+                        !eventData.dateRange.start || !eventData.dateRange.end : 
+                        eventData.isMultiSelect ?
+                          eventData.selectedDates.length === 0 :
+                          !eventData.date
+                      )
+                    )) ||
+                    (activeTab === 'services' && (!eventData.venueId && !eventData.useCustomVenue))
+                  }
+                >
+                  {activeTab === 'dates' ? 'Next to Services' : 
+                   activeTab === 'services' ? 'Review Event' : 
+                   (activeTab === 'venue' || 
+                    activeTab === 'dj' || 
+                    activeTab === 'catering' || 
+                    activeTab === 'entertainment' || 
+                    activeTab === 'photography' || 
+                    activeTab === 'decoration' || 
+                    activeTab === 'audioVisual' || 
+                    activeTab === 'furniture' || 
+                    activeTab === 'barService' || 
+                    activeTab === 'security') ? 'Back to Services' : 'Next'}
+                </Button>
+              )}
+            </Box>
           )}
         </Box>
         

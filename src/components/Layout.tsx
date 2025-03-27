@@ -22,7 +22,8 @@ import {
   CalendarMonth as CalendarIcon,
   Message as MessageIcon,
   Settings as SettingsIcon,
-  Celebration as CelebrationIcon
+  Celebration as CelebrationIcon,
+  Favorite as FavoriteIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -154,8 +155,9 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch
             value={
               location.pathname === '/' ? 0 :
               location.pathname === '/my-events' ? 1 :
-              location.pathname === '/messages' ? 2 :
-              location.pathname === '/profile' ? 3 : 0
+              location.pathname === '/favorites' ? 2 :
+              location.pathname === '/messages' ? 3 :
+              location.pathname === '/profile' ? 4 : 0
             }
           >
             <BottomNavigationAction 
@@ -167,6 +169,11 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch
               label="My Events" 
               icon={<EventIcon />} 
               onClick={() => navigate('/my-events')}
+            />
+            <BottomNavigationAction 
+              label="Favorites" 
+              icon={<FavoriteIcon />} 
+              onClick={() => navigate('/favorites')}
             />
             <BottomNavigationAction 
               label="Messages" 

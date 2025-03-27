@@ -124,7 +124,8 @@ const DiscoverEventsPage: React.FC = () => {
   
   // Filter events based on current filters
   useEffect(() => {
-    let result = events.filter(event => event.isPublic);
+    // All events are now public, so we don't filter by isPublic anymore
+    let result = events;
     
     // Apply search query filter
     if (filters.searchQuery) {

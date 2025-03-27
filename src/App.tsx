@@ -16,9 +16,13 @@ import VendorVerificationPage from './pages/VendorVerificationPage';
 import ServiceProviderDashboard from './pages/ServiceProviderDashboard';
 import PaymentPage from './pages/PaymentPage';
 import EventDetailsPage from './pages/EventDetailsPage';
+import FavoritesPage from './pages/FavoritesPage';
+import ServiceListPage from './pages/ServiceListPage';
+import CreateServicePage from './pages/CreateServicePage';
 
 // Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { FavoritesProvider } from './contexts/FavoritesContext';
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -54,6 +58,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/find-service" element={<FindServicePage />} />
+      <Route path="/services/:serviceType" element={<ServiceListPage />} />
       <Route path="/my-events" element={
         <ProtectedRoute>
           <MyEventsPage />
@@ -63,6 +68,11 @@ function AppRoutes() {
       <Route path="/profile" element={
         <ProtectedRoute>
           <ProfilePage />
+        </ProtectedRoute>
+      } />
+      <Route path="/favorites" element={
+        <ProtectedRoute>
+          <FavoritesPage />
         </ProtectedRoute>
       } />
       <Route path="/manage-services" element={
@@ -91,6 +101,11 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/event/:eventId" element={<EventDetailsPage />} />
+      <Route path="/create-service" element={
+        <ProtectedRoute>
+          <CreateServicePage />
+        </ProtectedRoute>
+      } />
     </Routes>
   );
 }
@@ -99,7 +114,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppRoutes />
+        <FavoritesProvider>
+          <AppRoutes />
+        </FavoritesProvider>
       </AuthProvider>
     </Router>
   );

@@ -27,6 +27,7 @@ import {
 import Layout from '../components/Layout';
 import EventCard from '../components/EventCard';
 import ServiceCard from '../components/ServiceCard';
+import ServiceRow from '../components/ServiceRow';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   events, 
@@ -65,14 +66,14 @@ const HomePage: React.FC = () => {
   const currentServiceCategory = serviceCategories[serviceTab];
   
   // Sort services by different criteria
-  const recommendedServices = [...currentServiceCategory.data].sort(() => Math.random() - 0.5).slice(0, 4); // Random for mock
-  const topRatedServices = [...currentServiceCategory.data].sort((a, b) => b.rating - a.rating).slice(0, 4);
+  const recommendedServices = [...currentServiceCategory.data].sort(() => Math.random() - 0.5).slice(0, 8); // Show more items
+  const topRatedServices = [...currentServiceCategory.data].sort((a, b) => b.rating - a.rating).slice(0, 8);
   const nearbyServices = [...currentServiceCategory.data].sort((a, b) => {
     // Handle sorting by distance safely across different service types
     const distanceA = 'distance' in a ? a.distance : 0;
     const distanceB = 'distance' in b ? b.distance : 0;
     return distanceA - distanceB;
-  }).slice(0, 4);
+  }).slice(0, 8);
   
   // Check if user is an event organizer
   const isEventOrganizer = isAuthenticated && currentUser?.role === 'eventOrganizer';
@@ -81,24 +82,6 @@ const HomePage: React.FC = () => {
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setServiceTab(newValue);
   };
-  
-  // Section Header component
-  const SectionHeader = ({ icon, title }: { icon: React.ReactNode, title: string }) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, mt: 4 }}>
-      {icon}
-      <Typography variant="h5" component="h2" fontWeight="600" sx={{ ml: 1 }}>
-        {title}
-      </Typography>
-      <Box sx={{ flexGrow: 1 }} />
-      <Button 
-        endIcon={<ArrowForwardIcon />}
-        onClick={() => navigate('/find-service')}
-        size="small"
-      >
-        View All
-      </Button>
-    </Box>
-  );
   
   return (
     <Layout title="WeParty">
@@ -173,55 +156,34 @@ const HomePage: React.FC = () => {
         </Box>
         
         {/* Recommended Services */}
-        <SectionHeader 
-          icon={<RecommendIcon color="primary" />} 
-          title={`Recommended ${currentServiceCategory.label}`} 
+        <ServiceRow
+          icon={<RecommendIcon color="primary" />}
+          title={`Recommended ${currentServiceCategory.label}`}
+          services={recommendedServices}
+          serviceType={currentServiceCategory.value}
+          viewAllText={`View All ${currentServiceCategory.label}`}
+          viewAllLink={`/services/${currentServiceCategory.value}`}
         />
-        <Grid container spacing={2}>
-          {recommendedServices.map((service) => (
-            <Grid item xs={12} sm={6} md={3} key={service.id}>
-              <ServiceCard 
-                service={service} 
-                type={currentServiceCategory.value as any}
-                onClick={() => navigate(`/service/${currentServiceCategory.value}/${service.id}`)} 
-              />
-            </Grid>
-          ))}
-        </Grid>
         
         {/* Top Rated Services */}
-        <SectionHeader 
-          icon={<StarIcon color="primary" />} 
-          title={`Top Rated ${currentServiceCategory.label}`} 
+        <ServiceRow
+          icon={<StarIcon color="primary" />}
+          title={`Top Rated ${currentServiceCategory.label}`}
+          services={topRatedServices}
+          serviceType={currentServiceCategory.value}
+          viewAllText={`View All ${currentServiceCategory.label}`}
+          viewAllLink={`/services/${currentServiceCategory.value}`}
         />
-        <Grid container spacing={2}>
-          {topRatedServices.map((service) => (
-            <Grid item xs={12} sm={6} md={3} key={service.id}>
-              <ServiceCard 
-                service={service} 
-                type={currentServiceCategory.value as any}
-                onClick={() => navigate(`/service/${currentServiceCategory.value}/${service.id}`)} 
-              />
-            </Grid>
-          ))}
-        </Grid>
         
         {/* Nearby Services */}
-        <SectionHeader 
-          icon={<LocationIcon color="primary" />} 
-          title={`${currentServiceCategory.label} Near You`} 
+        <ServiceRow
+          icon={<LocationIcon color="primary" />}
+          title={`${currentServiceCategory.label} Near You`}
+          services={nearbyServices}
+          serviceType={currentServiceCategory.value}
+          viewAllText={`View All ${currentServiceCategory.label}`}
+          viewAllLink={`/services/${currentServiceCategory.value}`}
         />
-        <Grid container spacing={2} sx={{ mb: 4 }}>
-          {nearbyServices.map((service) => (
-            <Grid item xs={12} sm={6} md={3} key={service.id}>
-              <ServiceCard 
-                service={service} 
-                type={currentServiceCategory.value as any}
-                onClick={() => navigate(`/service/${currentServiceCategory.value}/${service.id}`)} 
-              />
-            </Grid>
-          ))}
-        </Grid>
       </Container>
     </Layout>
   );

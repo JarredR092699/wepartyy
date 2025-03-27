@@ -10,7 +10,8 @@ import {
   Divider,
   CardActions,
   Button,
-  Tooltip
+  Tooltip,
+  IconButton
 } from '@mui/material';
 import {
   LocationOn as LocationIcon,
@@ -27,7 +28,9 @@ import {
   Chair as FurnitureIcon,
   LocalBar as BarServiceIcon,
   Security as SecurityIcon,
-  AccessTime as TimeIcon
+  AccessTime as TimeIcon,
+  Star as StarIcon,
+  StarBorder as StarBorderIcon
 } from '@mui/icons-material';
 import { 
   Venue, 
@@ -43,6 +46,7 @@ import {
 } from '../data/mockData';
 import MessageButton from './MessageButton';
 import { useAuth } from '../contexts/AuthContext';
+import { useFavorites } from '../contexts/FavoritesContext';
 
 interface ServiceCardProps {
   service: Venue | DJ | CateringService | Entertainment | Photography | Decoration | AudioVisual | Furniture | BarService | Security;
@@ -54,6 +58,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, type, onClick }) => 
   // Common properties
   const { name, price, rating, reviews } = service;
   const { currentUser } = useAuth();
+  const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
   
   // Get type-specific properties
   const getTypeSpecificInfo = () => {
@@ -326,7 +331,10 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, type, onClick }) => 
         return `$${price}`;
     }
   };
-  
+
+  // Check if this service is favorited
+  const isServiceFavorite = isFavorite(service.id);
+
   return (
     <Card 
       sx={{ 
@@ -381,9 +389,25 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, type, onClick }) => 
         </Box>
       </CardContent>
       
-      {/* Only show message button if user is logged in and not the owner */}
-      {currentUser && !isOwner() && (
-        <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1 }}>
+        {/* Favorite button */}
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isServiceFavorite) {
+              removeFavorite(service.id);
+            } else {
+              addFavorite(service.id, type);
+            }
+          }}
+          color={isServiceFavorite ? 'primary' : 'default'}
+          size="small"
+        >
+          {isServiceFavorite ? <StarIcon /> : <StarBorderIcon />}
+        </IconButton>
+        
+        {/* Only show message button if user is logged in and not the owner */}
+        {currentUser && !isOwner() && (
           <MessageButton 
             recipient={getRecipient()} 
             variant="text" 
@@ -391,8 +415,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, type, onClick }) => 
             color="primary"
             prefilledMessage={`Hi, I'm interested in your ${type} service.`}
           />
-        </CardActions>
-      )}
+        )}
+      </Box>
     </Card>
   );
 };

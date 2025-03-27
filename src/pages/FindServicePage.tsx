@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -38,6 +39,15 @@ interface TabPanelProps {
   value: number;
 }
 
+// Type for the user's location
+interface UserLocation {
+  address: string;
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+}
+
 const TabPanel = (props: TabPanelProps) => {
   const { children, value, index, ...other } = props;
 
@@ -59,8 +69,28 @@ const TabPanel = (props: TabPanelProps) => {
 };
 
 const FindServicePage: React.FC = () => {
+  const routeLocation = useLocation();
   const { currentUser } = useAuth();
-  const [tabValue, setTabValue] = useState(0);
+  
+  // Parse URL parameters for initial tab selection
+  const getInitialTab = () => {
+    // Check for URL query parameters
+    const queryParams = new URLSearchParams(routeLocation.search);
+    const serviceType = queryParams.get('type');
+    
+    if (serviceType === 'venue') return 0;
+    if (serviceType === 'dj') return 1;
+    if (serviceType === 'catering') return 2;
+    
+    // Check for state data (for backward compatibility)
+    if (routeLocation.state && 'initialTab' in routeLocation.state) {
+      return (routeLocation.state as { initialTab: number }).initialTab;
+    }
+    
+    return 0; // Default to venues
+  };
+  
+  const [tabValue, setTabValue] = useState(getInitialTab());
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -72,7 +102,7 @@ const FindServicePage: React.FC = () => {
   const [cuisineTypes, setCuisineTypes] = useState<string[]>([]);
   
   // Location and distance filtering
-  const [location, setLocation] = useState({
+  const [userLocation, setUserLocation] = useState<UserLocation>({
     address: currentUser?.location?.address || 'New York, NY',
     coordinates: currentUser?.location?.coordinates || { lat: 40.7128, lng: -74.0060 }
   });
@@ -102,7 +132,7 @@ const FindServicePage: React.FC = () => {
   const useCurrentLocation = () => {
     // In a real app, this would use the browser's geolocation API
     // For now, we'll just set a mock location
-    setLocation({
+    setUserLocation({
       address: 'Current Location',
       coordinates: { lat: 40.7128, lng: -74.0060 }
     });
@@ -114,7 +144,7 @@ const FindServicePage: React.FC = () => {
     if (customLocation) {
       // In a real app, this would use a geocoding API to convert address to coordinates
       // For now, we'll just set mock coordinates
-      setLocation({
+      setUserLocation({
         address: customLocation,
         coordinates: { lat: 40.7500, lng: -73.9800 }
       });
@@ -126,8 +156,8 @@ const FindServicePage: React.FC = () => {
     return services.map(service => {
       if (service.coordinates) {
         const distance = calculateDistance(
-          location.coordinates.lat,
-          location.coordinates.lng,
+          userLocation.coordinates.lat,
+          userLocation.coordinates.lng,
           service.coordinates.lat,
           service.coordinates.lng
         );
@@ -191,6 +221,12 @@ const FindServicePage: React.FC = () => {
   // Get all unique cuisine types
   const allCuisineTypes = Array.from(new Set(cateringServices.flatMap(catering => catering.cuisineType)));
   
+  // Update page title based on tab
+  useEffect(() => {
+    const titles = ['Venues', 'DJs', 'Catering Services'];
+    document.title = `Find ${titles[tabValue]} | WeParty`;
+  }, [tabValue]);
+
   return (
     <Layout title="Find a Service">
       <Container maxWidth="md">
@@ -245,7 +281,7 @@ const FindServicePage: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <LocationOnIcon color="primary" sx={{ mr: 1 }} />
                 <Typography variant="body1" sx={{ flexGrow: 1 }}>
-                  {location.address}
+                  {userLocation.address}
                 </Typography>
                 <Tooltip title="Use current location">
                   <IconButton onClick={useCurrentLocation} size="small">

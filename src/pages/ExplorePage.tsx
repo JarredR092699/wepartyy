@@ -17,16 +17,16 @@ import {
   Restaurant as RestaurantIcon
 } from '@mui/icons-material';
 import Layout from '../components/Layout';
-import ServiceCard from '../components/ServiceCard';
+import ServiceRow from '../components/ServiceRow';
 import { venues, djs, cateringServices } from '../data/mockData';
 
 const ExplorePage: React.FC = () => {
   const navigate = useNavigate();
   
-  // Get top rated services
-  const topVenues = [...venues].sort((a, b) => b.rating - a.rating).slice(0, 2);
-  const topDJs = [...djs].sort((a, b) => b.rating - a.rating).slice(0, 2);
-  const topCatering = [...cateringServices].sort((a, b) => b.rating - a.rating).slice(0, 2);
+  // Get top rated services - getting more items for scrolling
+  const topVenues = [...venues].sort((a, b) => b.rating - a.rating).slice(0, 6);
+  const topDJs = [...djs].sort((a, b) => b.rating - a.rating).slice(0, 6);
+  const topCatering = [...cateringServices].sort((a, b) => b.rating - a.rating).slice(0, 6);
   
   // Navigate to find service page with specific tab
   const navigateToService = (serviceType: number) => {
@@ -107,7 +107,7 @@ const ExplorePage: React.FC = () => {
                     DJs
                   </Typography>
                   <Typography variant="body2" color="text.secondary" align="center">
-                    Book talented DJs for your party
+                    Great music and entertainment
                   </Typography>
                 </CardContent>
               </Card>
@@ -153,97 +153,34 @@ const ExplorePage: React.FC = () => {
         <Divider sx={{ my: 4 }} />
         
         {/* Top Venues Section */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5" component="h2" fontWeight="bold">
-              Top Venues
-            </Typography>
-            
-            <Button 
-              variant="text" 
-              onClick={() => navigateToService(0)}
-            >
-              See All
-            </Button>
-          </Box>
-          
-          <Grid container spacing={2}>
-            {topVenues.map((venue) => (
-              <Grid item xs={12} sm={6} key={venue.id}>
-                <ServiceCard 
-                  service={venue} 
-                  type="venue" 
-                  onClick={() => {
-                    // In a real app, this would navigate to the venue details page
-                    console.log(`Clicked on venue: ${venue.id}`);
-                  }}
-                />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
+        <ServiceRow 
+          icon={<LocationIcon color="primary" />}
+          title="Top Venues"
+          services={topVenues}
+          serviceType="venue"
+          viewAllText="View All Venues"
+          viewAllLink="/services/venue" 
+        />
         
         {/* Top DJs Section */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5" component="h2" fontWeight="bold">
-              Top DJs
-            </Typography>
-            
-            <Button 
-              variant="text" 
-              onClick={() => navigateToService(1)}
-            >
-              See All
-            </Button>
-          </Box>
-          
-          <Grid container spacing={2}>
-            {topDJs.map((dj) => (
-              <Grid item xs={12} sm={6} key={dj.id}>
-                <ServiceCard 
-                  service={dj} 
-                  type="dj" 
-                  onClick={() => {
-                    // In a real app, this would navigate to the DJ details page
-                    console.log(`Clicked on DJ: ${dj.id}`);
-                  }}
-                />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
+        <ServiceRow 
+          icon={<MusicIcon color="primary" />}
+          title="Top DJs"
+          services={topDJs}
+          serviceType="dj"
+          viewAllText="View All DJs"
+          viewAllLink="/services/dj" 
+        />
         
         {/* Top Catering Services Section */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5" component="h2" fontWeight="bold">
-              Top Catering Services
-            </Typography>
-            
-            <Button 
-              variant="text" 
-              onClick={() => navigateToService(2)}
-            >
-              See All
-            </Button>
-          </Box>
-          
-          <Grid container spacing={2}>
-            {topCatering.map((catering) => (
-              <Grid item xs={12} sm={6} key={catering.id}>
-                <ServiceCard 
-                  service={catering} 
-                  type="catering" 
-                  onClick={() => {
-                    // In a real app, this would navigate to the catering details page
-                    console.log(`Clicked on catering: ${catering.id}`);
-                  }}
-                />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
+        <ServiceRow 
+          icon={<RestaurantIcon color="primary" />}
+          title="Top Catering Services"
+          services={topCatering}
+          serviceType="catering"
+          viewAllText="View All Catering Services"
+          viewAllLink="/services/catering" 
+        />
       </Container>
     </Layout>
   );

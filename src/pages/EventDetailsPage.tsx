@@ -270,15 +270,6 @@ const EventDetailsPage: React.FC = () => {
       <Container maxWidth="md" sx={{ py: 4 }}>
         {/* Event Header */}
         <Paper sx={{ p: 3, mb: 3, position: 'relative' }}>
-          <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
-            <Chip 
-              icon={event.isPublic ? <PublicIcon /> : <LockIcon />}
-              label={event.isPublic ? 'Public Event' : 'Private Event'}
-              color={event.isPublic ? 'success' : 'primary'}
-              variant="outlined"
-            />
-          </Box>
-          
           <Typography variant="h4" gutterBottom>{event.eventName}</Typography>
           
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -324,7 +315,7 @@ const EventDetailsPage: React.FC = () => {
                 size="large"
                 onClick={handleJoinClick}
               >
-                {event.isPublic ? 'Join Event' : 'Request to Join'}
+                Join Event
               </Button>
             </Box>
           )}

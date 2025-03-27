@@ -110,6 +110,27 @@ const ManageServicesPage: React.FC = () => {
   const getUserServices = () => {
     if (!currentUser) return [];
     
+    // For users with multiple services
+    if (currentUser.role === 'multiple' && currentUser.selectedServices) {
+      const allServices = [];
+      
+      // Add services based on selected categories
+      if (currentUser.selectedServices.includes('dj')) {
+        allServices.push(...djs.filter(dj => dj.ownerId === currentUser.id));
+      }
+      
+      if (currentUser.selectedServices.includes('caterer')) {
+        allServices.push(...cateringServices.filter(service => service.ownerId === currentUser.id));
+      }
+      
+      if (currentUser.selectedServices.includes('venue')) {
+        allServices.push(...venues.filter(venue => venue.ownerId === currentUser.id));
+      }
+      
+      return allServices;
+    }
+    
+    // For users with a single service type
     switch (currentUser.role) {
       case 'dj':
         return djs.filter(dj => dj.ownerId === currentUser.id);
@@ -125,7 +146,6 @@ const ManageServicesPage: React.FC = () => {
   const [services, setServices] = useState<(DJ | CateringService | Venue)[]>(getUserServices());
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [currentService, setCurrentService] = useState<DJ | CateringService | Venue | null>(null);
-  const [isNewService, setIsNewService] = useState(false);
   
   // Form fields for different service types
   const [formData, setFormData] = useState({
@@ -166,7 +186,6 @@ const ManageServicesPage: React.FC = () => {
   const handleOpenEditDialog = (service: DJ | CateringService | Venue | null = null) => {
     if (service) {
       // Edit existing service
-      setIsNewService(false);
       setCurrentService(service);
       
       // Set common fields
@@ -186,28 +205,9 @@ const ManageServicesPage: React.FC = () => {
         cuisineType: 'cuisineType' in service ? service.cuisineType : [],
         maxTravelDistance: 'maxTravelDistance' in service ? service.maxTravelDistance || 30 : 30
       });
-    } else {
-      // Create new service
-      setIsNewService(true);
-      setCurrentService(null);
       
-      // Reset form data
-      setFormData({
-        name: '',
-        price: 0,
-        description: '',
-        image: '',
-        genres: [],
-        experience: 0,
-        type: 'indoor',
-        size: 'medium',
-        location: '',
-        cuisineType: [],
-        maxTravelDistance: 30
-      });
+      setEditDialogOpen(true);
     }
-    
-    setEditDialogOpen(true);
   };
   
   // Handle closing the edit dialog
@@ -240,87 +240,16 @@ const ManageServicesPage: React.FC = () => {
     // In a real app, this would make an API call to save the service
     // For now, we'll just update our local state
     
-    if (isNewService) {
-      // Create a new service based on user role
-      const newService = createNewService();
-      if (newService) {
-        setServices([...services, newService]);
-        setSnackbarMessage('Service created successfully!');
-      }
-    } else if (currentService) {
+    if (currentService) {
       // Update existing service
       const updatedServices = services.map(service => 
         service.id === currentService.id ? { ...service, ...updateServiceData() } : service
       );
       setServices(updatedServices);
       setSnackbarMessage('Service updated successfully!');
-    }
-    
-    setSnackbarOpen(true);
-    setEditDialogOpen(false);
-  };
-  
-  // Create a new service based on user role
-  const createNewService = () => {
-    if (!currentUser) return null;
-    
-    const newId = `${currentUser.role[0]}${services.length + 1}`;
-    
-    switch (currentUser.role) {
-      case 'dj':
-        return {
-          id: newId,
-          name: formData.name,
-          genres: formData.genres,
-          experience: formData.experience,
-          price: formData.price,
-          rating: 0,
-          reviews: 0,
-          bio: formData.description,
-          image: formData.image || '/djs/default.jpg',
-          availability: [],
-          maxTravelDistance: formData.maxTravelDistance,
-          ownerId: currentUser.id,
-          coordinates: currentUser.location?.coordinates
-        } as DJ;
-        
-      case 'caterer':
-        return {
-          id: newId,
-          name: formData.name,
-          cuisineType: formData.cuisineType,
-          price: formData.price,
-          rating: 0,
-          reviews: 0,
-          description: formData.description,
-          image: formData.image || '/catering/default.jpg',
-          availability: [],
-          maxTravelDistance: formData.maxTravelDistance,
-          ownerId: currentUser.id,
-          coordinates: currentUser.location?.coordinates
-        } as CateringService;
-        
-      case 'venue':
-        return {
-          id: newId,
-          name: formData.name,
-          type: formData.type,
-          size: formData.size,
-          style: [],
-          price: formData.price,
-          location: formData.location,
-          distance: 0,
-          rating: 0,
-          reviews: 0,
-          description: formData.description,
-          images: [formData.image || '/venues/default.jpg'],
-          availability: [],
-          ownerId: currentUser.id,
-          coordinates: currentUser.location?.coordinates
-        } as Venue;
-        
-      default:
-        return null;
+      
+      setSnackbarOpen(true);
+      setEditDialogOpen(false);
     }
   };
   
@@ -378,88 +307,38 @@ const ManageServicesPage: React.FC = () => {
     setSnackbarOpen(true);
   };
   
-  // Update the handleManageAvailability function
+  // Handle managing service availability
   const handleManageAvailability = (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (service) {
-      setSelectedService(service);
-      
-      // Load mock calendar events for this service
-      // In a real app, this would come from an API
-      const mockEvents: CalendarEvent[] = [
-        {
-          id: 'e1',
-          date: new Date(2025, 2, 15), // March 15, 2025
-          title: 'Spring Conference',
-          type: 'event'
-        },
-        {
-          id: 'e2',
-          date: new Date(2025, 2, 22), // March 22, 2025
-          title: 'Tech Expo',
-          type: 'event'
-        },
-        {
-          id: 'e3',
-          date: new Date(2025, 2, 28), // March 28, 2025
-          title: 'Corporate Retreat',
-          type: 'event'
-        },
-        {
-          id: 'unavailable-1',
-          date: new Date(2025, 2, 5), // March 5, 2025
-          title: 'Unavailable',
-          type: 'unavailable',
-          recurring: false
-        },
-        {
-          id: 'unavailable-2',
-          date: new Date(2025, 2, 10), // March 10, 2025
-          title: 'Unavailable',
-          type: 'unavailable',
-          recurring: false
-        },
-        {
-          id: 'unavailable-3',
-          date: new Date(2025, 2, 18), // March 18, 2025
-          title: 'Unavailable',
-          type: 'unavailable',
-          recurring: false
-        }
-      ];
-      
-      // Add available dates (all days in March 2025 that are not events or unavailable)
-      const availableEvents: CalendarEvent[] = [];
-      const startOfMarch = new Date(2025, 2, 1);
-      const endOfMarch = new Date(2025, 2, 31);
-      
-      let currentDate = startOfMarch;
-      while (currentDate <= endOfMarch) {
-        const currentDateCopy = new Date(currentDate);
-        
-        // Check if this date is already an event or unavailable
-        const isEventDate = mockEvents.some(event => 
-          event.type === 'event' && isSameDay(event.date, currentDateCopy)
-        );
-        const isUnavailableDate = mockEvents.some(event => 
-          event.type === 'unavailable' && isSameDay(event.date, currentDateCopy)
-        );
-        
-        if (!isEventDate && !isUnavailableDate) {
-          availableEvents.push({
-            id: `available-${format(currentDateCopy, 'yyyy-MM-dd')}`,
-            title: 'Available',
-            date: currentDateCopy,
-            type: 'available'
-          });
-        }
-        
-        currentDate = addDays(currentDate, 1);
+    // Find the service
+    const service = services.find(s => {
+      if ('id' in s) {
+        return s.id === serviceId;
       }
-      
-      setCalendarEvents([...mockEvents, ...availableEvents]);
-      setAvailabilityDialogOpen(true);
+      return false;
+    });
+    
+    if (!service) {
+      setSnackbarMessage('Service not found');
+      setSnackbarOpen(true);
+      return;
     }
+    
+    // Set the selected service and current dates
+    setSelectedService(service);
+    
+    // Parse availability dates
+    const availabilityDates = service.availability.map(dateStr => new Date(dateStr));
+    setCalendarEvents(
+      availabilityDates.map((date, index) => ({
+        id: `avail-${index}`,
+        date,
+        title: 'Available',
+        type: 'available'
+      }))
+    );
+    
+    // Open the availability dialog
+    setAvailabilityDialogOpen(true);
   };
   
   // Add these helper functions for calendar functionality
@@ -587,7 +466,7 @@ const ManageServicesPage: React.FC = () => {
     }
   };
   
-  // Add this function to render the availability dialog
+  // Render the availability management dialog
   const renderAvailabilityDialog = () => {
     return (
       <Dialog 
@@ -597,250 +476,275 @@ const ManageServicesPage: React.FC = () => {
         fullWidth
       >
         <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">
-              Manage Availability: {selectedService?.name}
-            </Typography>
-            <IconButton onClick={() => setAvailabilityDialogOpen(false)}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
+          Manage Availability
+          <IconButton
+            aria-label="close"
+            onClick={() => setAvailabilityDialogOpen(false)}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
-            <Box sx={{ flex: 1 }}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DateCalendar 
-                  value={selectedDate}
-                  onChange={(newDate) => {
-                    setSelectedDate(newDate);
-                    if (newDate) {
-                      handleDateClick(newDate);
-                    }
-                  }}
-                  onMonthChange={(newMonth) => setCurrentMonth(newMonth)}
-                  views={['day']}
-                  openTo="day"
-                  slots={{
-                    day: (props) => {
-                      const isEventDay = isDateEvent(props.day);
-                      const isUnavailableDay = isDateUnavailable(props.day);
-                      const isAvailableDay = isDateAvailable(props.day);
-                      
-                      return (
-                        <CustomDay
-                          {...props}
-                          isEvent={isEventDay}
-                          isUnavailable={isUnavailableDay}
-                          isAvailable={isAvailableDay}
-                        />
-                      );
-                    }
-                  }}
-                />
-              </LocalizationProvider>
-              
-              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 2 }}>
-                <Button
-                  variant={isRangeSelection ? "contained" : "outlined"}
-                  startIcon={<DateRangeIcon />}
-                  onClick={() => {
-                    setIsRangeSelection(!isRangeSelection);
-                    setRangeStart(null);
-                  }}
-                >
-                  {isRangeSelection ? "Cancel Range Selection" : "Select Date Range"}
-                </Button>
-              </Box>
-              
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle1" gutterBottom>
-                  Legend:
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: '#90caf9' }} />
-                    <Typography variant="body2">Booked Event</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: '#ef9a9a' }} />
-                    <Typography variant="body2">Marked as Unavailable</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: '#c8e6c9' }} />
-                    <Typography variant="body2">Available</Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-            
-            <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
-            <Divider sx={{ display: { xs: 'block', md: 'none' }, my: 2 }} />
-            
-            <Box sx={{ flex: 1 }}>
+        <DialogContent dividers>
+          {selectedService && (
+            <Box>
               <Typography variant="h6" gutterBottom>
-                {format(currentMonth, 'MMMM yyyy')} Events & Availability
+                {selectedService.name}
               </Typography>
               
-              <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
-                Booked Events:
-              </Typography>
-              
-              {calendarEvents
-                .filter(event => 
-                  event.date.getMonth() === currentMonth.getMonth() && 
-                  event.date.getFullYear() === currentMonth.getFullYear() &&
-                  event.type === 'event'
-                )
-                .sort((a, b) => a.date.getTime() - b.date.getTime())
-                .map(event => (
-                  <Paper 
-                    key={event.id} 
-                    elevation={0} 
-                    sx={{ 
-                      p: 2, 
-                      mb: 2, 
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderLeft: '4px solid #1976d2',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <EventIcon color="primary" fontSize="small" />
-                        <Typography variant="subtitle1">
-                          {format(event.date, 'EEEE, MMMM d, yyyy')}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        {event.title}
-                      </Typography>
-                    </Box>
-                  </Paper>
-                ))}
-              
-              {calendarEvents.filter(event => 
-                event.date.getMonth() === currentMonth.getMonth() && 
-                event.date.getFullYear() === currentMonth.getFullYear() &&
-                event.type === 'event'
-              ).length === 0 && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  No booked events for this month.
-                </Typography>
-              )}
-              
-              <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
-                Unavailable Dates:
-              </Typography>
-              
-              {calendarEvents
-                .filter(event => 
-                  event.date.getMonth() === currentMonth.getMonth() && 
-                  event.date.getFullYear() === currentMonth.getFullYear() &&
-                  event.type === 'unavailable'
-                )
-                .sort((a, b) => a.date.getTime() - b.date.getTime())
-                .map(event => (
-                  <Paper 
-                    key={event.id} 
-                    elevation={0} 
-                    sx={{ 
-                      p: 2, 
-                      mb: 2, 
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderLeft: '4px solid #d32f2f',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <EventBusyIcon color="error" fontSize="small" />
-                        <Typography variant="subtitle1">
-                          {format(event.date, 'EEEE, MMMM d, yyyy')}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Marked as unavailable
-                      </Typography>
-                    </Box>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Calendar Integration
+                  </Typography>
+                  
+                  <Box sx={{ mb: 3 }}>
+                    <FormControl fullWidth margin="normal">
+                      <InputLabel id="calendar-type-label">Calendar Type</InputLabel>
+                      <Select
+                        labelId="calendar-type-label"
+                        value={currentUser?.calendarType || ''}
+                        label="Calendar Type"
+                        onChange={(e) => {
+                          // In a real app, this would update the user's calendar preferences
+                          setSnackbarMessage('Calendar preference saved');
+                          setSnackbarOpen(true);
+                        }}
+                      >
+                        <MenuItem value="">No Integration</MenuItem>
+                        <MenuItem value="google">Google Calendar</MenuItem>
+                        <MenuItem value="ical">iCal</MenuItem>
+                      </Select>
+                    </FormControl>
                     
-                    <IconButton 
-                      size="small" 
-                      color="error"
+                    <Button
+                      variant="outlined"
+                      sx={{ mt: 2 }}
+                      startIcon={<EventIcon />}
                       onClick={() => {
-                        // Remove unavailability and add as available
-                        const filteredEvents = calendarEvents.filter(e => e.id !== event.id);
-                        
-                        // Add as available
-                        const newAvailableEvent = {
-                          id: `available-${format(event.date, 'yyyy-MM-dd')}`,
-                          date: event.date,
-                          title: 'Available',
-                          type: 'available' as const
-                        };
-                        
-                        setCalendarEvents([...filteredEvents, newAvailableEvent]);
+                        // In a real app, this would trigger calendar authentication
+                        setSnackbarMessage('Calendar integration is not yet implemented');
+                        setSnackbarOpen(true);
                       }}
                     >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  </Paper>
-                ))}
+                      Connect Calendar
+                    </Button>
+                    
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                      Connecting your calendar will automatically update your availability
+                      based on your existing appointments.
+                    </Typography>
+                  </Box>
+                  
+                  <Divider sx={{ my: 2 }} />
+                  
+                  <Typography variant="subtitle1" gutterBottom>
+                    Manual Availability
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                    <Button 
+                      variant="outlined" 
+                      size="small"
+                      onClick={() => {
+                        setIsRangeSelection(!isRangeSelection);
+                        setRangeStart(null);
+                      }}
+                    >
+                      {isRangeSelection ? 'Single Date Selection' : 'Date Range Selection'}
+                    </Button>
+                    
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      onClick={() => {
+                        if (selectedDate) {
+                          setDateToMarkUnavailable(selectedDate);
+                          setConfirmUnavailabilityDialog(true);
+                        } else {
+                          setSnackbarMessage('Please select a date first');
+                          setSnackbarOpen(true);
+                        }
+                      }}
+                      disabled={!selectedDate}
+                    >
+                      Mark as Unavailable
+                    </Button>
+                  </Box>
+                  
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Click on dates to mark them as available. Click again to remove.
+                  </Typography>
+                </Grid>
                 
-              {calendarEvents.filter(event => 
-                event.date.getMonth() === currentMonth.getMonth() && 
-                event.date.getFullYear() === currentMonth.getFullYear() &&
-                event.type === 'unavailable'
-              ).length === 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  No unavailable dates for this month.
-                </Typography>
-              )}
+                <Grid item xs={12} md={6}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <DateCalendar
+                        value={selectedDate}
+                        onChange={(newDate) => {
+                          if (!newDate) return;
+                          
+                          setSelectedDate(newDate);
+                          
+                          if (isRangeSelection) {
+                            if (!rangeStart) {
+                              setRangeStart(newDate);
+                            } else {
+                              // Mark all dates in range as available
+                              const start = rangeStart < newDate ? rangeStart : newDate;
+                              const end = rangeStart < newDate ? newDate : rangeStart;
+                              
+                              // Create dates for the range
+                              const datesInRange: Date[] = [];
+                              let currentDate = start;
+                              
+                              while (currentDate <= end) {
+                                datesInRange.push(new Date(currentDate));
+                                currentDate = addDays(currentDate, 1);
+                              }
+                              
+                              // Add to calendar events
+                              const newEvents = [
+                                ...calendarEvents,
+                                ...datesInRange.map((date, index) => ({
+                                  id: `range-${index}-${Date.now()}`,
+                                  date,
+                                  title: 'Available',
+                                  type: 'available' as const
+                                }))
+                              ];
+                              
+                              setCalendarEvents(newEvents);
+                              setRangeStart(null);
+                            }
+                          } else {
+                            // Toggle individual date availability
+                            const dateIndex = calendarEvents.findIndex(e => 
+                              e.type === 'available' && isSameDay(e.date, newDate)
+                            );
+                            
+                            if (dateIndex === -1) {
+                              // Add as available
+                              setCalendarEvents([
+                                ...calendarEvents,
+                                {
+                                  id: `avail-${Date.now()}`,
+                                  date: newDate,
+                                  title: 'Available',
+                                  type: 'available'
+                                }
+                              ]);
+                            } else {
+                              // Remove availability
+                              const newEvents = [...calendarEvents];
+                              newEvents.splice(dateIndex, 1);
+                              setCalendarEvents(newEvents);
+                            }
+                          }
+                        }}
+                        slots={{
+                          day: (dayProps) => 
+                            <CustomDay 
+                              {...dayProps}
+                              isAvailable={isDateAvailable(dayProps.day)}
+                              isUnavailable={isDateUnavailable(dayProps.day)}
+                              isEvent={isDateEvent(dayProps.day)} 
+                            />
+                        }}
+                        views={['day']}
+                      />
+                      
+                      <Box sx={{ mt: 2, width: '100%' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#c8e6c9', mr: 1 }} />
+                            <Typography variant="body2">Available</Typography>
+                          </Box>
+                          
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#ef9a9a', mr: 1 }} />
+                            <Typography variant="body2">Unavailable</Typography>
+                          </Box>
+                          
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#90caf9', mr: 1 }} />
+                            <Typography variant="body2">Booked</Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </LocalizationProvider>
+                </Grid>
+              </Grid>
             </Box>
-          </Box>
+          )}
         </DialogContent>
         
         <DialogActions>
-          <Button onClick={() => setAvailabilityDialogOpen(false)}>
-            Cancel
-          </Button>
+          <Button onClick={() => setAvailabilityDialogOpen(false)}>Cancel</Button>
           <Button 
             variant="contained" 
             onClick={() => {
-              // In a real app, this would save the availability to the backend
-              setSnackbarMessage('Availability updated successfully!');
-              setSnackbarOpen(true);
-              setAvailabilityDialogOpen(false);
+              // Save availability (in a real app, this would update the database)
+              if (selectedService) {
+                // Extract available dates from calendar events
+                const availableDates = calendarEvents
+                  .filter(e => e.type === 'available')
+                  .map(e => format(e.date, 'yyyy-MM-dd'));
+                
+                // Update the service's availability
+                const updatedServices = services.map(s => {
+                  if (
+                    'id' in s && selectedService && 'id' in selectedService && 
+                    s.id === selectedService.id
+                  ) {
+                    return {
+                      ...s,
+                      availability: availableDates
+                    };
+                  }
+                  return s;
+                });
+                
+                setServices(updatedServices);
+                setSnackbarMessage('Availability updated successfully');
+                setSnackbarOpen(true);
+                setAvailabilityDialogOpen(false);
+              }
             }}
           >
-            Save Changes
+            Save Availability
           </Button>
         </DialogActions>
       </Dialog>
     );
   };
   
-  // Render service cards based on user role
+  // Render service cards
   const renderServiceCards = () => {
     if (services.length === 0) {
       return (
         <Box sx={{ textAlign: 'center', py: 4 }}>
-          <Typography variant="body1" color="text.secondary" paragraph>
-            You don't have any services yet.
+          <Typography variant="h6" gutterBottom>
+            You haven't added any services yet.
           </Typography>
-          <Button 
-            variant="contained" 
+          <Typography variant="body1" color="text.secondary" paragraph>
+            Start by adding your first service to get discovered by event organizers.
+          </Typography>
+          <Button
+            variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => handleOpenEditDialog()}
+            onClick={() => navigate('/create-service')}
           >
-            Add Your First Service
+            Create Service
           </Button>
         </Box>
       );
@@ -954,31 +858,6 @@ const ManageServicesPage: React.FC = () => {
             </Card>
           </Grid>
         ))}
-        
-        {/* Add new service card */}
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            elevation={1} 
-            sx={{ 
-              height: '100%', 
-              display: 'flex', 
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              p: 3,
-              border: '2px dashed',
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              cursor: 'pointer'
-            }}
-            onClick={() => handleOpenEditDialog()}
-          >
-            <AddIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-            <Typography variant="h6" color="primary">
-              Add New Service
-            </Typography>
-          </Card>
-        </Grid>
       </Grid>
     );
   };
@@ -987,17 +866,17 @@ const ManageServicesPage: React.FC = () => {
   const renderEditDialog = () => {
     if (!currentUser) return null;
     
-    let dialogTitle = isNewService ? 'Add New Service' : 'Edit Service';
+    let dialogTitle = 'Edit Service';
     
     switch (currentUser?.role) {
       case 'dj':
-        dialogTitle = isNewService ? 'Add New DJ Service' : 'Edit DJ Service';
+        dialogTitle = 'Edit DJ Service';
         break;
       case 'caterer':
-        dialogTitle = isNewService ? 'Add New Catering Service' : 'Edit Catering Service';
+        dialogTitle = 'Edit Catering Service';
         break;
       case 'venue':
-        dialogTitle = isNewService ? 'Add New Venue' : 'Edit Venue';
+        dialogTitle = 'Edit Venue';
         break;
     }
     
@@ -1225,8 +1104,29 @@ const ManageServicesPage: React.FC = () => {
   }
   
   return (
-    <Layout title="Manage Services">
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
+    <Layout title="Manage Services" hideSearch>
+      <Container maxWidth="md">
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h4" component="h1">
+              Your Services
+            </Typography>
+            
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/create-service')}
+            >
+              Create Service
+            </Button>
+          </Box>
+          
+          <Typography variant="body1" color="text.secondary">
+            Manage your service listings and availability.
+          </Typography>
+        </Box>
+        
         <Paper elevation={0} sx={{ p: 3, borderRadius: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Typography variant="h5">
@@ -1235,9 +1135,9 @@ const ManageServicesPage: React.FC = () => {
             <Button 
               variant="contained" 
               startIcon={<AddIcon />}
-              onClick={() => handleOpenEditDialog()}
+              onClick={() => navigate('/create-service')}
             >
-              Add New Service
+              Create Service
             </Button>
           </Box>
           

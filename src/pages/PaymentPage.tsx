@@ -30,7 +30,8 @@ import {
   AccountBalance as BankIcon,
   Public as PublicIcon,
   Lock as LockIcon,
-  CheckCircleOutline as CheckCircleIcon
+  CheckCircleOutline as CheckCircleIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
@@ -66,7 +67,7 @@ const PrivacyCard = styled(Card)<{ selected?: boolean }>(({ theme, selected }) =
 }));
 
 // Define payment steps
-const steps = ['Review & Confirm', 'Payment Method', 'Privacy Settings', 'Complete'];
+const steps = ['Review Details', 'Payment Method', 'Confirmation'];
 
 // Payment page component
 const PaymentPage: React.FC = () => {
@@ -128,7 +129,6 @@ const PaymentPage: React.FC = () => {
   const [cardName, setCardName] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
-  const [privacyType, setPrivacyType] = useState('private');
   const [processing, setProcessing] = useState(false);
   const [eventLink, setEventLink] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -158,6 +158,12 @@ const PaymentPage: React.FC = () => {
   
   // Handle back step
   const handleBack = () => {
+    // If processing is in progress, show a notification but still allow going back
+    if (processing) {
+      setSnackbarMessage('Payment processing is in progress, going back will not cancel it');
+      setSnackbarOpen(true);
+    }
+    
     setActiveStep((prevStep) => prevStep - 1);
   };
   
@@ -182,7 +188,7 @@ const PaymentPage: React.FC = () => {
         id: eventId,
         ...eventData,
         createdBy: getUserId(currentUser),
-        isPublic: privacyType === 'public',
+        isPublic: true,
         totalPrice: total,
         depositPaid: depositAmount,
         participants: [],
@@ -248,6 +254,16 @@ const PaymentPage: React.FC = () => {
             <Typography variant="body2" sx={{ mt: 1 }}>
               The remaining balance of ${(total - depositAmount).toLocaleString()} will be due 14 days before your event.
             </Typography>
+            
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-start' }}>
+              <Button 
+                variant="outlined" 
+                startIcon={<ArrowBackIcon />}
+                onClick={() => navigate('/create-event')}
+              >
+                Back to Event Creation
+              </Button>
+            </Box>
           </Paper>
         );
         
@@ -361,63 +377,7 @@ const PaymentPage: React.FC = () => {
           </>
         );
         
-      case 2: // Privacy settings step
-        return (
-          <>
-            <Typography variant="h6" gutterBottom>Privacy Settings</Typography>
-            <Typography variant="body1" sx={{ mb: 3 }}>
-              Choose whether your event is public or private:
-            </Typography>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <PrivacyCard 
-                  selected={privacyType === 'public'}
-                  onClick={() => setPrivacyType('public')}
-                >
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <PublicIcon color="primary" sx={{ mr: 1, fontSize: 40 }} />
-                      <Typography variant="h6">Public Event</Typography>
-                    </Box>
-                    <Typography variant="body2" sx={{ minHeight: 80 }}>
-                      Anyone can see your event details and join without approval. Ideal for open parties, community gatherings, and events where you want to reach a wider audience.
-                    </Typography>
-                    <Box sx={{ mt: 2, bgcolor: 'primary.light', p: 1.5, borderRadius: 1 }}>
-                      <Typography variant="body2" fontWeight="medium">
-                        Participants can simply click to join your event.
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </PrivacyCard>
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <PrivacyCard 
-                  selected={privacyType === 'private'}
-                  onClick={() => setPrivacyType('private')}
-                >
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <LockIcon color="primary" sx={{ mr: 1, fontSize: 40 }} />
-                      <Typography variant="h6">Private Event</Typography>
-                    </Box>
-                    <Typography variant="body2" sx={{ minHeight: 80 }}>
-                      Your event details are visible only to people with the link, and they must request permission to join. Perfect for exclusive parties, business events, or gatherings with a select guest list.
-                    </Typography>
-                    <Box sx={{ mt: 2, bgcolor: 'primary.light', p: 1.5, borderRadius: 1 }}>
-                      <Typography variant="body2" fontWeight="medium">
-                        You'll approve each participant's request to join.
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </PrivacyCard>
-              </Grid>
-            </Grid>
-          </>
-        );
-        
-      case 3: // Completion step
+      case 2: // Completion step
         return (
           <Paper sx={{ p: 4, textAlign: 'center' }}>
             <CheckCircleIcon color="success" sx={{ fontSize: 80, mb: 2 }} />
@@ -454,8 +414,16 @@ const PaymentPage: React.FC = () => {
                 variant="contained" 
                 size="large"
                 onClick={viewEvent}
+                sx={{ mr: 2 }}
               >
                 View Event Page
+              </Button>
+              <Button 
+                variant="outlined"
+                startIcon={<ArrowBackIcon />}
+                onClick={() => navigate('/services')}
+              >
+                Back to Services
               </Button>
             </Box>
           </Paper>
@@ -484,11 +452,11 @@ const PaymentPage: React.FC = () => {
         {activeStep < 3 && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
             <Button
-              disabled={activeStep === 0 || processing}
-              onClick={handleBack}
+              disabled={false}
+              onClick={activeStep === 0 ? () => navigate(-1) : handleBack}
               variant="outlined"
             >
-              Back
+              {activeStep === 0 ? 'Back to Event Creation' : 'Back'}
             </Button>
             
             <Button
