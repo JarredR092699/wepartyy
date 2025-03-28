@@ -26,7 +26,7 @@ import {
   Event as EventIcon
 } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider, DateCalendar, PickersDay, PickersDayProps } from '@mui/x-date-pickers';
+import { LocalizationProvider, DateCalendar, PickersDay, PickersDayProps, DatePicker } from '@mui/x-date-pickers';
 import { format, isSameDay } from 'date-fns';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
@@ -278,6 +278,14 @@ const CreateServicePage: React.FC = () => {
       newDates.splice(dateIndex, 1);
       setAvailableDates(newDates);
     }
+  };
+  
+  // Handle recurring days date selection
+  const handleRecurringDayChange = (type: 'startDate' | 'endDate', newDate: Date | null) => {
+    setRecurringDays({
+      ...recurringDays,
+      [type]: newDate
+    });
   };
   
   // Handle form submission
@@ -1227,12 +1235,7 @@ const CreateServicePage: React.FC = () => {
                   <DatePicker
                     label="Valid From (optional)"
                     value={recurringDays.startDate}
-                    onChange={(newDate) => {
-                      setRecurringDays({
-                        ...recurringDays,
-                        startDate: newDate
-                      });
-                    }}
+                    onChange={(newDate: Date | null) => handleRecurringDayChange('startDate', newDate)}
                     slotProps={{
                       textField: {
                         fullWidth: true,
@@ -1247,12 +1250,7 @@ const CreateServicePage: React.FC = () => {
                   <DatePicker
                     label="Valid Until (optional)"
                     value={recurringDays.endDate}
-                    onChange={(newDate) => {
-                      setRecurringDays({
-                        ...recurringDays,
-                        endDate: newDate
-                      });
-                    }}
+                    onChange={(newDate: Date | null) => handleRecurringDayChange('endDate', newDate)}
                     slotProps={{
                       textField: {
                         fullWidth: true,
