@@ -68,6 +68,19 @@ const CreateServicePage: React.FC = () => {
   const [selectedServiceTypes, setSelectedServiceTypes] = useState<UserRole[]>([]);
   const [error, setError] = useState<string | null>(null);
   
+  // For recurring availability
+  const [recurringDays, setRecurringDays] = useState<{
+    enabled: boolean;
+    days: number[]; // 0 = Sunday, 1 = Monday, etc.
+    startDate: Date | null;
+    endDate: Date | null;
+  }>({
+    enabled: false,
+    days: [],
+    startDate: null,
+    endDate: null
+  });
+  
   // Basic form data
   const [formData, setFormData] = useState({
     // Common fields
@@ -77,10 +90,30 @@ const CreateServicePage: React.FC = () => {
     priceType: 'flat' as 'hourly' | 'flat' | 'per_person' | 'package' | 'custom' | 'per_item' | 'per_guard',
     maxTravelDistance: 30,
     
+    // Location information
+    location: {
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: 'USA',
+    },
+    
+    // Price structure
+    priceStructure: 'fixed' as 'fixed' | 'individual',
+    
     // Primary and combined service types
     primaryService: '' as UserRole | '',
     combinedServices: [] as UserRole[],
     combineDescription: '',
+    
+    // Optional services
+    optionalServices: [] as {
+      name: string;
+      description: string;
+      price: number;
+      type: UserRole;
+    }[],
     
     // DJ specific fields
     genres: [] as string[],
@@ -170,6 +203,17 @@ const CreateServicePage: React.FC = () => {
         setError('Please enter a valid price');
         return;
       }
+      
+      // Description is now optional, so no validation needed for it
+    }
+    
+    if (activeStep === 2) {
+      // Validate venue location if primary service is venue
+      if (formData.primaryService === 'venue' && 
+          (!formData.location.address.trim() || !formData.location.city.trim())) {
+        setError('Please provide a location for your venue service');
+        return;
+      }
     }
     
     setError(null);
@@ -256,8 +300,14 @@ const CreateServicePage: React.FC = () => {
       return;
     }
     
-    if (availableDates.length === 0) {
-      setError('Please select at least one available date');
+    if (formData.primaryService === 'venue' && 
+        (!formData.location.address.trim() || !formData.location.city.trim())) {
+      setError('Please provide a location for your venue service');
+      return;
+    }
+    
+    if (availableDates.length === 0 && !recurringDays.enabled) {
+      setError('Please select at least one available date or set up recurring availability');
       return;
     }
     
@@ -279,6 +329,22 @@ const CreateServicePage: React.FC = () => {
       type: formData.primaryService,
       availability: availableDates.map(date => format(date, 'yyyy-MM-dd')),
       
+      // Recurring availability
+      recurringAvailability: recurringDays.enabled ? {
+        days: recurringDays.days,
+        startDate: recurringDays.startDate ? format(recurringDays.startDate, 'yyyy-MM-dd') : null,
+        endDate: recurringDays.endDate ? format(recurringDays.endDate, 'yyyy-MM-dd') : null,
+      } : null,
+      
+      // Location information
+      location: formData.location,
+      
+      // Price structure
+      priceStructure: formData.priceStructure,
+      
+      // Optional services
+      optionalServices: formData.optionalServices,
+      
       // Combined service information
       isCombinedService: formData.combinedServices.length > 0,
       combinedServices: formData.combinedServices,
@@ -290,7 +356,6 @@ const CreateServicePage: React.FC = () => {
         venueSize: formData.venueSize,
         venueStyles: formData.venueStyles,
         capacity: formData.capacity,
-        location: currentUser?.location?.address || 'Location not specified',
       }),
       
       ...(formData.primaryService === 'dj' && {
@@ -311,7 +376,10 @@ const CreateServicePage: React.FC = () => {
     alert('Service created successfully with ' + 
       (formData.combinedServices.length > 0 
         ? `${formData.combinedServices.length} combined services` 
-        : 'no combined services'));
+        : 'no combined services') +
+      (formData.optionalServices.length > 0
+        ? ` and ${formData.optionalServices.length} optional services`
+        : ''));
     
     // Navigate back to the manage services page
     navigate('/manage-services');
@@ -470,15 +538,33 @@ const CreateServicePage: React.FC = () => {
         
         <TextField
           fullWidth
-          label="Description"
+          label="Description (Optional)"
           name="description"
           value={formData.description}
           onChange={handleTextChange}
           margin="normal"
           multiline
           rows={4}
-          required
         />
+        
+        <FormControl fullWidth margin="normal">
+          <InputLabel id="price-structure-label">Price Structure</InputLabel>
+          <Select
+            labelId="price-structure-label"
+            name="priceStructure"
+            value={formData.priceStructure}
+            onChange={(e) => {
+              setFormData({
+                ...formData,
+                priceStructure: e.target.value as 'fixed' | 'individual'
+              });
+            }}
+            label="Price Structure"
+          >
+            <MenuItem value="fixed">Fixed Price (For entire service)</MenuItem>
+            <MenuItem value="individual">Individual Pricing (Sum of components)</MenuItem>
+          </Select>
+        </FormControl>
         
         <FormControl fullWidth margin="normal">
           <InputLabel id="price-type-label">Price Type</InputLabel>
@@ -590,9 +676,209 @@ const CreateServicePage: React.FC = () => {
       </Box>
     );
     
+    // Optional Services Section - common for all service types
+    const optionalServicesSection = (
+      <Box sx={{ mt: 4, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Optional Services
+        </Typography>
+        <Typography variant="body2" color="text.secondary" paragraph>
+          Add any optional services or add-ons that clients can choose with your main service.
+        </Typography>
+        
+        {formData.optionalServices.map((service, index) => (
+          <Paper key={index} sx={{ p: 2, mb: 2, bgcolor: 'background.default' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Typography variant="subtitle1">{service.name}</Typography>
+              <Button 
+                size="small" 
+                color="error"
+                onClick={() => {
+                  const updatedOptionalServices = [...formData.optionalServices];
+                  updatedOptionalServices.splice(index, 1);
+                  setFormData({
+                    ...formData,
+                    optionalServices: updatedOptionalServices
+                  });
+                }}
+              >
+                Remove
+              </Button>
+            </Box>
+            <Typography variant="body2" color="text.secondary">{service.description}</Typography>
+            <Typography variant="body2">
+              <strong>Price:</strong> ${service.price}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Type:</strong> {
+                service.type === 'venue' ? 'Venue' : 
+                service.type === 'dj' ? 'DJ' : 
+                service.type === 'caterer' ? 'Catering' : 
+                service.type === 'entertainment' ? 'Entertainment' : 
+                service.type === 'photography' ? 'Photography' : 
+                service.type === 'decoration' ? 'Decoration' : 
+                service.type === 'audioVisual' ? 'Audio Visual' : 
+                service.type === 'furniture' ? 'Furniture' : 
+                service.type === 'barService' ? 'Bar Service' : 
+                service.type === 'security' ? 'Security' : 
+                service.type
+              }
+            </Typography>
+          </Paper>
+        ))}
+        
+        <Button 
+          variant="outlined" 
+          fullWidth 
+          onClick={() => {
+            // Open a dialog to add optional service
+            // For simplicity, we'll just add a default one
+            const newOptionalService = {
+              name: `Additional ${
+                primaryService === 'venue' ? 'Venue Service' : 
+                primaryService === 'dj' ? 'DJ Service' : 
+                primaryService === 'caterer' ? 'Catering Option' : 
+                primaryService === 'entertainment' ? 'Entertainment' : 
+                primaryService === 'photography' ? 'Photography Package' : 
+                primaryService === 'decoration' ? 'Decoration Add-on' : 
+                primaryService === 'audioVisual' ? 'A/V Equipment' : 
+                primaryService === 'furniture' ? 'Furniture Item' : 
+                primaryService === 'barService' ? 'Bar Option' : 
+                primaryService === 'security' ? 'Security Service' : 
+                'Service'
+              }`,
+              description: 'Describe this optional service here...',
+              price: 50,
+              type: primaryService
+            };
+            
+            setFormData({
+              ...formData,
+              optionalServices: [...formData.optionalServices, newOptionalService]
+            });
+          }}
+        >
+          Add Optional Service
+        </Button>
+      </Box>
+    );
+    
+    // Location Section - primarily for venue but can be used for others
+    const locationSection = (
+      <Box sx={{ mt: 4, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Location Information
+          {primaryService !== 'venue' && ' (Optional)'}
+        </Typography>
+        
+        <TextField
+          fullWidth
+          label="Address"
+          name="locationAddress"
+          value={formData.location.address}
+          onChange={(e) => {
+            setFormData({
+              ...formData,
+              location: {
+                ...formData.location,
+                address: e.target.value
+              }
+            });
+          }}
+          margin="normal"
+          required={primaryService === 'venue'}
+        />
+        
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="City"
+              name="locationCity"
+              value={formData.location.city}
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  location: {
+                    ...formData.location,
+                    city: e.target.value
+                  }
+                });
+              }}
+              margin="normal"
+              required={primaryService === 'venue'}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="State/Province"
+              name="locationState"
+              value={formData.location.state}
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  location: {
+                    ...formData.location,
+                    state: e.target.value
+                  }
+                });
+              }}
+              margin="normal"
+              required={primaryService === 'venue'}
+            />
+          </Grid>
+        </Grid>
+        
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Zip/Postal Code"
+              name="locationZipCode"
+              value={formData.location.zipCode}
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  location: {
+                    ...formData.location,
+                    zipCode: e.target.value
+                  }
+                });
+              }}
+              margin="normal"
+              required={primaryService === 'venue'}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Country"
+              name="locationCountry"
+              value={formData.location.country}
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  location: {
+                    ...formData.location,
+                    country: e.target.value
+                  }
+                });
+              }}
+              margin="normal"
+              required={primaryService === 'venue'}
+            />
+          </Grid>
+        </Grid>
+      </Box>
+    );
+    
+    // Service-specific Fields
+    let serviceSpecificFields;
+    
     switch (primaryService) {
       case 'dj':
-        return (
+        serviceSpecificFields = (
           <Box>
             {combinedServicesSummary}
             <Typography variant="h6" gutterBottom>
@@ -634,11 +920,18 @@ const CreateServicePage: React.FC = () => {
                 inputProps: { min: 0 }
               }}
             />
+            
+            {/* Add Location Section */}
+            {locationSection}
+            
+            {/* Optional Services Section */}
+            {optionalServicesSection}
           </Box>
         );
+        break;
         
       case 'venue':
-        return (
+        serviceSpecificFields = (
           <Box>
             {combinedServicesSummary}
             <Typography variant="h6" gutterBottom>
@@ -721,11 +1014,18 @@ const CreateServicePage: React.FC = () => {
                 ))}
               </Select>
             </FormControl>
+            
+            {/* Add Location Section */}
+            {locationSection}
+            
+            {/* Optional Services Section */}
+            {optionalServicesSection}
           </Box>
         );
+        break;
         
       case 'caterer':
-        return (
+        serviceSpecificFields = (
           <Box>
             {combinedServicesSummary}
             <Typography variant="h6" gutterBottom>
@@ -754,25 +1054,40 @@ const CreateServicePage: React.FC = () => {
                 ))}
               </Select>
             </FormControl>
+            
+            {/* Add Location Section */}
+            {locationSection}
+            
+            {/* Optional Services Section */}
+            {optionalServicesSection}
           </Box>
         );
+        break;
         
       // Add more cases for other service types as needed
         
       default:
-        return (
+        serviceSpecificFields = (
           <Box>
             {combinedServicesSummary}
             <Typography>
               Please provide any additional details specific to your service.
             </Typography>
             
-            <Alert severity="info" sx={{ mt: 2 }}>
+            <Alert severity="info" sx={{ mt: 2, mb: 4 }}>
               You'll be able to add more detailed information to your service profile after creation.
             </Alert>
+            
+            {/* Add Location Section */}
+            {locationSection}
+            
+            {/* Optional Services Section */}
+            {optionalServicesSection}
           </Box>
         );
     }
+    
+    return serviceSpecificFields;
   };
   
   // Render availability selection step
@@ -842,66 +1157,181 @@ const CreateServicePage: React.FC = () => {
           </Paper>
         )}
         
-        <Typography variant="body2" color="text.secondary" paragraph>
-          Select dates when you're available to provide this service. You can update this later.
-        </Typography>
+        <Box sx={{ mb: 4 }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={recurringDays.enabled}
+                onChange={(e) => {
+                  setRecurringDays({
+                    ...recurringDays,
+                    enabled: e.target.checked
+                  });
+                }}
+              />
+            }
+            label="Set up recurring availability (e.g., every Monday)"
+          />
+        </Box>
         
-        <Box sx={{ mt: 2, mb: 4 }}>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Later, you'll be able to connect your calendar (Google, iCal) to automatically update your availability.
-          </Alert>
-          
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <DateCalendar
-              value={new Date()}
-              onChange={(newDate) => {
-                if (newDate) handleDateClick(newDate);
-              }}
-              slots={{
-                day: (dayProps) => (
-                  <CustomDay
-                    {...dayProps}
-                    isSelected={availableDates.some(d => isSameDay(d, dayProps.day))}
+        {recurringDays.enabled ? (
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Recurring Availability
+            </Typography>
+            
+            <FormControl fullWidth margin="normal">
+              <InputLabel id="recurring-days-label">Available Days of the Week</InputLabel>
+              <Select
+                labelId="recurring-days-label"
+                multiple
+                value={recurringDays.days}
+                onChange={(e) => {
+                  setRecurringDays({
+                    ...recurringDays,
+                    days: e.target.value as number[]
+                  });
+                }}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {(selected as number[]).map((day) => (
+                      <Chip 
+                        key={day} 
+                        label={
+                          day === 0 ? 'Sunday' :
+                          day === 1 ? 'Monday' :
+                          day === 2 ? 'Tuesday' :
+                          day === 3 ? 'Wednesday' :
+                          day === 4 ? 'Thursday' :
+                          day === 5 ? 'Friday' :
+                          'Saturday'
+                        } 
+                      />
+                    ))}
+                  </Box>
+                )}
+              >
+                <MenuItem value={0}>Sunday</MenuItem>
+                <MenuItem value={1}>Monday</MenuItem>
+                <MenuItem value={2}>Tuesday</MenuItem>
+                <MenuItem value={3}>Wednesday</MenuItem>
+                <MenuItem value={4}>Thursday</MenuItem>
+                <MenuItem value={5}>Friday</MenuItem>
+                <MenuItem value={6}>Saturday</MenuItem>
+              </Select>
+            </FormControl>
+            
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    label="Valid From (optional)"
+                    value={recurringDays.startDate}
+                    onChange={(newDate) => {
+                      setRecurringDays({
+                        ...recurringDays,
+                        startDate: newDate
+                      });
+                    }}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        margin: 'normal'
+                      }
+                    }}
                   />
-                )
-              }}
-            />
-          </LocalizationProvider>
-        </Box>
-        
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle1">
-            Selected Available Dates:
-          </Typography>
-          
-          <Box sx={{ 
-            display: 'flex', 
-            flexWrap: 'wrap', 
-            gap: 1, 
-            mt: 1, 
-            maxHeight: '150px', 
-            overflowY: 'auto',
-            p: 1,
-            border: '1px solid #e0e0e0',
-            borderRadius: 1
-          }}>
-            {availableDates.length > 0 ? (
-              availableDates.map((date, index) => (
-                <Chip 
-                  key={index} 
-                  label={format(date, 'MMM d, yyyy')} 
-                  onDelete={() => handleDateClick(date)}
-                  color="primary"
-                  size="small"
-                />
-              ))
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                No dates selected yet. Click on the calendar to add available dates.
-              </Typography>
-            )}
+                </LocalizationProvider>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    label="Valid Until (optional)"
+                    value={recurringDays.endDate}
+                    onChange={(newDate) => {
+                      setRecurringDays({
+                        ...recurringDays,
+                        endDate: newDate
+                      });
+                    }}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        margin: 'normal'
+                      }
+                    }}
+                  />
+                </LocalizationProvider>
+              </Grid>
+            </Grid>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              Your service will be available on the selected days of the week{recurringDays.startDate ? ` starting from ${format(recurringDays.startDate, 'MMM d, yyyy')}` : ''}{recurringDays.endDate ? ` until ${format(recurringDays.endDate, 'MMM d, yyyy')}` : ''}.
+            </Typography>
           </Box>
-        </Box>
+        ) : (
+          <>
+            <Typography variant="body2" color="text.secondary" paragraph>
+              Select specific dates when you're available to provide this service. You can update this later.
+            </Typography>
+            
+            <Box sx={{ mt: 2, mb: 4 }}>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Later, you'll be able to connect your calendar (Google, iCal) to automatically update your availability.
+              </Alert>
+              
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DateCalendar
+                  value={new Date()}
+                  onChange={(newDate) => {
+                    if (newDate) handleDateClick(newDate);
+                  }}
+                  slots={{
+                    day: (dayProps) => (
+                      <CustomDay
+                        {...dayProps}
+                        isSelected={availableDates.some(d => isSameDay(d, dayProps.day))}
+                      />
+                    )
+                  }}
+                />
+              </LocalizationProvider>
+            </Box>
+            
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle1">
+                Selected Available Dates:
+              </Typography>
+              
+              <Box sx={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: 1, 
+                mt: 1, 
+                maxHeight: '150px', 
+                overflowY: 'auto',
+                p: 1,
+                border: '1px solid #e0e0e0',
+                borderRadius: 1
+              }}>
+                {availableDates.length > 0 ? (
+                  availableDates.map((date, index) => (
+                    <Chip 
+                      key={index} 
+                      label={format(date, 'MMM d, yyyy')} 
+                      onDelete={() => handleDateClick(date)}
+                      color="primary"
+                      size="small"
+                    />
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No dates selected yet. Click on the calendar to add available dates.
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </>
+        )}
         
         {formData.combinedServices.length > 0 && (
           <Alert severity="info" sx={{ mt: 2 }}>
