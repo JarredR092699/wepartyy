@@ -117,16 +117,16 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'WeParty', hideSearch
           <BottomNavigation
             showLabels
             value={
-              location.pathname === '/' || location.pathname === '/service-dashboard' ? 0 :
+              location.pathname === '/' || location.pathname === '/my-events' ? 0 :
               location.pathname === '/manage-services' ? 1 :
               location.pathname === '/messages' ? 2 :
               location.pathname === '/profile' ? 3 : 0
             }
           >
             <BottomNavigationAction 
-              label="Dashboard" 
-              icon={<CalendarIcon />} 
-              onClick={() => navigate('/service-dashboard')}
+              label="My Events" 
+              icon={<EventIcon />} 
+              onClick={() => navigate('/my-events')}
             />
             <BottomNavigationAction 
               label="Services" 

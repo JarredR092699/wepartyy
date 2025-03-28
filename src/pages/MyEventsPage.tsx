@@ -1,148 +1,501 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
   Typography,
+  Paper,
   Grid,
+  Button,
   Tabs,
   Tab,
-  Button,
-  Divider
+  Divider,
+  Card,
+  CardContent,
+  CardActions,
+  Chip,
+  Avatar,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Badge,
+  IconButton,
+  Menu,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  SelectChangeEvent,
+  ListItemIcon,
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
-import EventCard from '../components/EventCard';
-import { events } from '../data/mockData';
+import {
+  CalendarMonth as CalendarIcon,
+  Event as EventIcon,
+  Message as MessageIcon,
+  Settings as SettingsIcon,
+  MoreVert as MoreVertIcon,
+  Check as CheckIcon,
+  Close as CloseIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  Visibility as VisibilityIcon,
+  EventBusy as EventBusyIcon,
+  DateRange as DateRangeIcon,
+} from '@mui/icons-material';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider, DateCalendar, PickersDay, PickersDayProps, DatePicker } from '@mui/x-date-pickers';
+import { format, parseISO, isToday, isSameDay, addDays, eachDayOfInterval, isSameMonth, startOfMonth, endOfMonth, getDay, addMonths, isWithinInterval, startOfDay } from 'date-fns';
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
+import Layout from '../components/Layout';
+import { useAuth } from '../contexts/AuthContext';
+import { UserRole, Event, venues, djs, cateringServices } from '../data/mockData';
+
+// Interface for event requests
+interface EventRequest {
+  id: string;
+  eventId: string;
+  eventName: string;
+  date: string;
+  clientName: string;
+  status: 'pending' | 'accepted' | 'declined';
+  message?: string;
 }
 
-const TabPanel = (props: TabPanelProps) => {
-  const { children, value, index, ...other } = props;
+// Interface for messages
+interface Message {
+  id: string;
+  senderId: string;
+  senderName: string;
+  receiverId: string;
+  eventId?: string;
+  eventName?: string;
+  content: string;
+  timestamp: string;
+  read: boolean;
+}
 
+// Mock data for event requests
+const mockEventRequests: EventRequest[] = [
+  {
+    id: 'req1',
+    eventId: 'e1',
+    eventName: 'Spring Conference',
+    date: '2025-03-15',
+    clientName: 'Alex Johnson',
+    status: 'pending',
+    message: 'We would love to have your services at our event. Please let us know if you are available.'
+  },
+  {
+    id: 'req2',
+    eventId: 'e2',
+    eventName: 'Tech Expo',
+    date: '2025-03-22',
+    clientName: 'Maria Rodriguez',
+    status: 'accepted',
+  },
+  {
+    id: 'req3',
+    eventId: 'e3',
+    eventName: 'Corporate Retreat',
+    date: '2025-03-28',
+    clientName: 'John Smith',
+    status: 'declined',
+    message: 'Unfortunately, I am already booked for another event on this date.'
+  }
+];
+
+// Mock data for messages
+const mockMessages: Message[] = [
+  {
+    id: 'msg1',
+    senderId: 'u2',
+    senderName: 'Alex Johnson',
+    receiverId: 'u1',
+    eventId: 'e1',
+    eventName: 'Spring Conference',
+    content: 'Hi, I have a question about your availability for our event.',
+    timestamp: '2025-03-10T14:30:00Z',
+    read: true
+  },
+  {
+    id: 'msg2',
+    senderId: 'u3',
+    senderName: 'Maria Rodriguez',
+    receiverId: 'u1',
+    eventId: 'e2',
+    eventName: 'Tech Expo',
+    content: 'Looking forward to working with you at our event!',
+    timestamp: '2025-03-12T10:15:00Z',
+    read: false
+  }
+];
+
+// Mock upcoming events
+const mockUpcomingEvents = [
+  {
+    id: 'e1',
+    name: 'Spring Conference',
+    date: '2025-03-15',
+    venue: 'Skyline Convention Center',
+    client: 'Alex Johnson',
+    status: 'confirmed'
+  },
+  {
+    id: 'e2',
+    name: 'Tech Expo',
+    date: '2025-03-22',
+    venue: 'Innovation Hub',
+    client: 'Maria Rodriguez',
+    status: 'confirmed'
+  },
+  {
+    id: 'e3',
+    name: 'Corporate Retreat',
+    date: '2025-03-28',
+    venue: 'Tampa Bay Resort',
+    client: 'John Smith',
+    status: 'pending'
+  }
+];
+
+// Interface for calendar events
+interface CalendarEvent {
+  id: string;
+  date: Date;
+  title: string;
+  type: 'event' | 'unavailable' | 'available';
+  recurring?: boolean;
+}
+
+// Create a context for the calendar to share state
+interface CalendarContextType {
+  selectedDate: Date | null;
+  calendarEvents: CalendarEvent[];
+  currentMonth: Date;
+}
+
+const CalendarContext = React.createContext<CalendarContextType | undefined>(undefined);
+
+// Custom day component for the calendar
+const CustomDay = (props: PickersDayProps<Date> & { 
+  isEvent?: boolean; 
+  isUnavailable?: boolean;
+  isAvailable?: boolean;
+}) => {
+  const { isEvent, isUnavailable, isAvailable, ...other } = props;
+  
+  let backgroundColor = 'transparent';
+  if (isEvent) backgroundColor = '#90caf9'; // Blue for booked
+  if (isUnavailable) backgroundColor = '#ef9a9a'; // Red for unavailable
+  if (isAvailable) backgroundColor = '#c8e6c9'; // Green for available
+  
   return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`events-tabpanel-${index}`}
-      aria-labelledby={`events-tab-${index}`}
+    <PickersDay
       {...other}
-    >
-      {value === index && (
-        <Box sx={{ pt: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
+      disableMargin
+      sx={{
+        backgroundColor,
+        '&:hover': {
+          backgroundColor: isEvent ? '#64b5f6' : isUnavailable ? '#e57373' : '#a5d6a7',
+        },
+        borderRadius: '50%',
+      }}
+    />
   );
 };
 
 const MyEventsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [tabValue, setTabValue] = useState(0);
+  const { currentUser } = useAuth();
   
-  // In a real app, these would be filtered based on user data
-  // For now, we'll just use the mock data and pretend some are upcoming and some are past
-  const upcomingEvents = events.slice(0, 2); // First two events are "upcoming"
-  const pastEvents = events.slice(2); // Last event is "past"
+  // State for event requests and responses
+  const [eventRequests, setEventRequests] = useState<EventRequest[]>(mockEventRequests);
+  const [upcomingEvents, setUpcomingEvents] = useState(mockUpcomingEvents);
+  const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   
-  // Handle tab change
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
+  // State for event management menu
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const menuOpen = Boolean(anchorEl);
+  
+  // Check if user is logged in and redirect if not
+  useEffect(() => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+  }, [currentUser, navigate]);
+  
+  // Handle event menu opening
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, eventId: string) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedEventId(eventId);
+  };
+  
+  // Handle event menu closing
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+  
+  // Handle event request response
+  const handleEventRequestResponse = (requestId: string, accept: boolean) => {
+    setEventRequests(eventRequests.map(request => 
+      request.id === requestId 
+        ? { ...request, status: accept ? 'accepted' : 'declined' } 
+        : request
+    ));
+  };
+  
+  // Get service type display name
+  const getServiceTypeDisplayName = (role: UserRole): string => {
+    switch (role) {
+      case 'dj':
+        return 'DJ Services';
+      case 'caterer':
+        return 'Catering Services';
+      case 'venue':
+        return 'Venue Rental';
+      case 'photography':
+        return 'Photography Services';
+      case 'entertainment':
+        return 'Entertainment';
+      case 'decoration':
+        return 'Decoration Services';
+      case 'audioVisual':
+        return 'Audio Visual Services';
+      case 'furniture':
+        return 'Furniture Rental';
+      case 'barService':
+        return 'Bar Services';
+      case 'security':
+        return 'Security Services';
+      default:
+        return 'Services';
+    }
   };
   
   return (
     <Layout title="My Events">
-      <Container maxWidth="md">
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h5" component="h1" fontWeight="bold">
-            My Events
-          </Typography>
-          
-          <Button 
-            variant="contained" 
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/create-event')}
-          >
-            Create Event
-          </Button>
-        </Box>
-        
-        <Divider sx={{ mb: 2 }} />
-        
-        <Box sx={{ width: '100%' }}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs 
-              value={tabValue} 
-              onChange={handleTabChange} 
-              aria-label="events tabs"
-            >
-              <Tab label="Upcoming" />
-              <Tab label="Past" />
-            </Tabs>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+              {currentUser?.name?.charAt(0) || 'U'}
+            </Avatar>
+            <Box>
+              <Typography variant="h5" component="h1">
+                Welcome, {currentUser?.name || 'User'}!
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {currentUser && getServiceTypeDisplayName(currentUser.role)} Dashboard
+              </Typography>
+            </Box>
           </Box>
           
-          {/* Upcoming Events Tab */}
-          <TabPanel value={tabValue} index={0}>
-            {upcomingEvents.length > 0 ? (
-              <Grid container spacing={3}>
-                {upcomingEvents.map((event) => (
-                  <Grid item xs={12} sm={6} key={event.id}>
-                    <EventCard 
-                      event={event} 
-                      onClick={() => {
-                        // In a real app, this would navigate to the event details page
-                        console.log(`Clicked on event: ${event.id}`);
-                      }} 
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Box sx={{ py: 4, textAlign: 'center' }}>
-                <Typography variant="body1" color="text.secondary" paragraph>
-                  You don't have any upcoming events.
-                </Typography>
-                <Button 
-                  variant="contained" 
-                  startIcon={<AddIcon />}
-                  onClick={() => navigate('/create-event')}
-                >
-                  Create Your First Event
-                </Button>
-              </Box>
-            )}
-          </TabPanel>
+          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+            <Paper elevation={0} sx={{ p: 2, flex: 1, minWidth: 120, bgcolor: 'info.light', borderRadius: 2 }}>
+              <Typography variant="h6" sx={{ color: 'white' }}>
+                {eventRequests.filter(r => r.status === 'pending').length}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'white' }}>
+                New Requests
+              </Typography>
+            </Paper>
+            
+            <Paper elevation={0} sx={{ p: 2, flex: 1, minWidth: 120, bgcolor: 'success.light', borderRadius: 2 }}>
+              <Typography variant="h6" sx={{ color: 'white' }}>
+                {upcomingEvents.filter(e => e.status === 'confirmed').length}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'white' }}>
+                Confirmed Events
+              </Typography>
+            </Paper>
+            
+            <Paper elevation={0} sx={{ p: 2, flex: 1, minWidth: 120, bgcolor: 'warning.light', borderRadius: 2 }}>
+              <Typography variant="h6" sx={{ color: 'white' }}>
+                {upcomingEvents.filter(e => e.status === 'pending').length}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'white' }}>
+                Pending Events
+              </Typography>
+            </Paper>
+          </Box>
+        </Paper>
+        
+        <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Event Requests
+          </Typography>
           
-          {/* Past Events Tab */}
-          <TabPanel value={tabValue} index={1}>
-            {pastEvents.length > 0 ? (
-              <Grid container spacing={3}>
-                {pastEvents.map((event) => (
-                  <Grid item xs={12} sm={6} key={event.id}>
-                    <EventCard 
-                      event={event} 
-                      onClick={() => {
-                        // In a real app, this would navigate to the event details page
-                        console.log(`Clicked on event: ${event.id}`);
-                      }} 
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Box sx={{ py: 4, textAlign: 'center' }}>
-                <Typography variant="body1" color="text.secondary">
-                  You don't have any past events.
-                </Typography>
-              </Box>
-            )}
-          </TabPanel>
-        </Box>
+          {eventRequests.filter(r => r.status === 'pending').length > 0 ? (
+            <List>
+              {eventRequests
+                .filter(request => request.status === 'pending')
+                .map(request => (
+                <ListItem
+                  key={request.id}
+                  secondaryAction={
+                    <Box>
+                      <IconButton 
+                        color="success" 
+                        onClick={() => handleEventRequestResponse(request.id, true)}
+                      >
+                        <CheckIcon />
+                      </IconButton>
+                      <IconButton 
+                        color="error" 
+                        onClick={() => handleEventRequestResponse(request.id, false)}
+                      >
+                        <CloseIcon />
+                      </IconButton>
+                    </Box>
+                  }
+                >
+                  <ListItemAvatar>
+                    <Avatar>
+                      {request.clientName.charAt(0)}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={request.eventName}
+                    secondary={
+                      <>
+                        <Typography component="span" variant="body2" color="text.primary">
+                          {request.clientName}
+                        </Typography>
+                        {` — ${format(new Date(request.date), 'MMMM d, yyyy')}`}
+                        <br />
+                        {request.message && (
+                          <Typography variant="body2" color="text.secondary">
+                            {request.message}
+                          </Typography>
+                        )}
+                      </>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+              No pending event requests.
+            </Typography>
+          )}
+        </Paper>
+        
+        <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Upcoming Events
+          </Typography>
+          
+          {upcomingEvents.length > 0 ? (
+            <Grid container spacing={3}>
+              {upcomingEvents.map(event => (
+                <Grid item xs={12} sm={6} md={4} key={event.id}>
+                  <Card elevation={1}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Typography variant="h6" component="div">
+                          {event.name}
+                        </Typography>
+                        <IconButton
+                          aria-label="more"
+                          id={`event-menu-button-${event.id}`}
+                          aria-controls={menuOpen ? 'event-menu' : undefined}
+                          aria-expanded={menuOpen ? 'true' : undefined}
+                          aria-haspopup="true"
+                          onClick={(e) => handleMenuOpen(e, event.id)}
+                          size="small"
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      </Box>
+                      
+                      <Chip
+                        label={event.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                        color={event.status === 'confirmed' ? 'success' : 'warning'}
+                        size="small"
+                        sx={{ mb: 1 }}
+                      />
+                      
+                      <Typography color="text.secondary" gutterBottom>
+                        Date: {format(new Date(event.date), 'MMMM d, yyyy')}
+                      </Typography>
+                      
+                      <Typography variant="body2" color="text.secondary">
+                        Venue: {event.venue}
+                      </Typography>
+                      
+                      <Typography variant="body2" color="text.secondary">
+                        Client: {event.client}
+                      </Typography>
+                    </CardContent>
+                    <CardActions>
+                      <Button 
+                        size="small" 
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => navigate(`/event/${event.id}`)}
+                      >
+                        View Details
+                      </Button>
+                    </CardActions>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+              No upcoming events scheduled.
+            </Typography>
+          )}
+          
+          <Menu
+            id="event-menu"
+            anchorEl={anchorEl}
+            open={menuOpen}
+            onClose={handleMenuClose}
+            MenuListProps={{
+              'aria-labelledby': 'event-menu-button',
+            }}
+            anchorOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+          >
+            <MenuItem onClick={() => {
+              navigate(`/event/${selectedEventId}`);
+              handleMenuClose();
+            }}>
+              <ListItemIcon>
+                <VisibilityIcon fontSize="small" />
+              </ListItemIcon>
+              View Details
+            </MenuItem>
+            <MenuItem onClick={handleMenuClose}>
+              <ListItemIcon>
+                <EditIcon fontSize="small" />
+              </ListItemIcon>
+              Edit Event Notes
+            </MenuItem>
+            <MenuItem onClick={handleMenuClose}>
+              <ListItemIcon>
+                <DeleteIcon fontSize="small" color="error" />
+              </ListItemIcon>
+              <Typography color="error">Cancel Event</Typography>
+            </MenuItem>
+          </Menu>
+        </Paper>
       </Container>
     </Layout>
   );

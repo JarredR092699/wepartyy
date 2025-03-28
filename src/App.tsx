@@ -13,7 +13,6 @@ import RegisterPage from './pages/RegisterPage';
 import ManageServicesPage from './pages/ManageServicesPage';
 import MessagesPage from './pages/MessagesPage';
 import VendorVerificationPage from './pages/VendorVerificationPage';
-import ServiceProviderDashboard from './pages/ServiceProviderDashboard';
 import PaymentPage from './pages/PaymentPage';
 import EventDetailsPage from './pages/EventDetailsPage';
 import FavoritesPage from './pages/FavoritesPage';
@@ -40,7 +39,7 @@ const HomeRoute = () => {
   const { currentUser, isAuthenticated } = useAuth();
   
   if (isAuthenticated && currentUser && currentUser.role !== 'eventOrganizer' && currentUser.role !== 'publicUser') {
-    return <Navigate to="/service-dashboard" />;
+    return <Navigate to="/my-events" />;
   }
   
   return <HomePage />;
@@ -90,9 +89,9 @@ function AppRoutes() {
           <VendorVerificationPage />
         </ProtectedRoute>
       } />
-      <Route path="/service-dashboard" element={
+      <Route path="/my-events" element={
         <ProtectedRoute>
-          <ServiceProviderDashboard />
+          <MyEventsPage />
         </ProtectedRoute>
       } />
       <Route path="/payment" element={
