@@ -294,7 +294,7 @@ const MyEventsPage: React.FC = () => {
                 Welcome, {currentUser?.name || 'User'}!
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {currentUser && getServiceTypeDisplayName(currentUser.role)} Dashboard
+                {currentUser && getServiceTypeDisplayName(currentUser.role)} My Events
               </Typography>
             </Box>
           </Box>
