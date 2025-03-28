@@ -282,7 +282,7 @@ const MyEventsPage: React.FC = () => {
   };
   
   return (
-    <Layout title="My Events">
+    <Layout title="WeParty">
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
