@@ -33,6 +33,8 @@ import {
   Select,
   SelectChangeEvent,
   ListItemIcon,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import {
   CalendarMonth as CalendarIcon,
@@ -48,6 +50,8 @@ import {
   Visibility as VisibilityIcon,
   EventBusy as EventBusyIcon,
   DateRange as DateRangeIcon,
+  History as HistoryIcon,
+  EventAvailable as EventAvailableIcon,
 } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DateCalendar, PickersDay, PickersDayProps, DatePicker } from '@mui/x-date-pickers';
@@ -165,6 +169,34 @@ const mockUpcomingEvents = [
   }
 ];
 
+// Mock past events
+const mockPastEvents = [
+  {
+    id: 'p1',
+    name: 'Winter Gala',
+    date: '2024-12-15',
+    venue: 'Grand Ballroom',
+    client: 'Emily Chen',
+    status: 'completed'
+  },
+  {
+    id: 'p2',
+    name: 'Product Launch',
+    date: '2024-11-22',
+    venue: 'Downtown Convention Center',
+    client: 'Michael Brown',
+    status: 'completed'
+  },
+  {
+    id: 'p3',
+    name: 'Charity Fundraiser',
+    date: '2024-10-05',
+    venue: 'Bayside Hotel',
+    client: 'Sarah Wilson',
+    status: 'completed'
+  }
+];
+
 // Interface for calendar events
 interface CalendarEvent {
   id: string;
@@ -218,7 +250,11 @@ const MyEventsPage: React.FC = () => {
   // State for event requests and responses
   const [eventRequests, setEventRequests] = useState<EventRequest[]>(mockEventRequests);
   const [upcomingEvents, setUpcomingEvents] = useState(mockUpcomingEvents);
+  const [pastEvents, setPastEvents] = useState(mockPastEvents);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
+  
+  // State for event view mode
+  const [eventViewMode, setEventViewMode] = useState<'upcoming' | 'past'>('upcoming');
   
   // State for event management menu
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -278,6 +314,16 @@ const MyEventsPage: React.FC = () => {
         return 'Security Services';
       default:
         return 'Services';
+    }
+  };
+  
+  // Handle event view mode change
+  const handleEventViewModeChange = (
+    event: React.MouseEvent<HTMLElement>,
+    newMode: 'upcoming' | 'past' | null,
+  ) => {
+    if (newMode !== null) {
+      setEventViewMode(newMode);
     }
   };
   
@@ -391,69 +437,151 @@ const MyEventsPage: React.FC = () => {
         </Paper>
         
         <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Upcoming Events
-          </Typography>
-          
-          {upcomingEvents.length > 0 ? (
-            <Grid container spacing={3}>
-              {upcomingEvents.map(event => (
-                <Grid item xs={12} sm={6} md={4} key={event.id}>
-                  <Card elevation={1}>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <Typography variant="h6" component="div">
-                          {event.name}
-                        </Typography>
-                        <IconButton
-                          aria-label="more"
-                          id={`event-menu-button-${event.id}`}
-                          aria-controls={menuOpen ? 'event-menu' : undefined}
-                          aria-expanded={menuOpen ? 'true' : undefined}
-                          aria-haspopup="true"
-                          onClick={(e) => handleMenuOpen(e, event.id)}
-                          size="small"
-                        >
-                          <MoreVertIcon />
-                        </IconButton>
-                      </Box>
-                      
-                      <Chip
-                        label={event.status === 'confirmed' ? 'Confirmed' : 'Pending'}
-                        color={event.status === 'confirmed' ? 'success' : 'warning'}
-                        size="small"
-                        sx={{ mb: 1 }}
-                      />
-                      
-                      <Typography color="text.secondary" gutterBottom>
-                        Date: {format(new Date(event.date), 'MMMM d, yyyy')}
-                      </Typography>
-                      
-                      <Typography variant="body2" color="text.secondary">
-                        Venue: {event.venue}
-                      </Typography>
-                      
-                      <Typography variant="body2" color="text.secondary">
-                        Client: {event.client}
-                      </Typography>
-                    </CardContent>
-                    <CardActions>
-                      <Button 
-                        size="small" 
-                        startIcon={<VisibilityIcon />}
-                        onClick={() => navigate(`/event/${event.id}`)}
-                      >
-                        View Details
-                      </Button>
-                    </CardActions>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-              No upcoming events scheduled.
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              {eventViewMode === 'upcoming' ? 'Upcoming Events' : 'Past Events'}
             </Typography>
+            <ToggleButtonGroup
+              value={eventViewMode}
+              exclusive
+              onChange={handleEventViewModeChange}
+              aria-label="event view mode"
+              size="small"
+            >
+              <ToggleButton value="upcoming" aria-label="upcoming events">
+                <EventAvailableIcon sx={{ mr: 1 }} />
+                Upcoming
+              </ToggleButton>
+              <ToggleButton value="past" aria-label="past events">
+                <HistoryIcon sx={{ mr: 1 }} />
+                Past
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          
+          {eventViewMode === 'upcoming' ? (
+            upcomingEvents.length > 0 ? (
+              <Grid container spacing={3}>
+                {upcomingEvents.map(event => (
+                  <Grid item xs={12} sm={6} md={4} key={event.id}>
+                    <Card elevation={1}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <Typography variant="h6" component="div">
+                            {event.name}
+                          </Typography>
+                          <IconButton
+                            aria-label="more"
+                            id={`event-menu-button-${event.id}`}
+                            aria-controls={menuOpen ? 'event-menu' : undefined}
+                            aria-expanded={menuOpen ? 'true' : undefined}
+                            aria-haspopup="true"
+                            onClick={(e) => handleMenuOpen(e, event.id)}
+                            size="small"
+                          >
+                            <MoreVertIcon />
+                          </IconButton>
+                        </Box>
+                        
+                        <Chip
+                          label={event.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                          color={event.status === 'confirmed' ? 'success' : 'warning'}
+                          size="small"
+                          sx={{ mb: 1 }}
+                        />
+                        
+                        <Typography color="text.secondary" gutterBottom>
+                          Date: {format(new Date(event.date), 'MMMM d, yyyy')}
+                        </Typography>
+                        
+                        <Typography variant="body2" color="text.secondary">
+                          Venue: {event.venue}
+                        </Typography>
+                        
+                        <Typography variant="body2" color="text.secondary">
+                          Client: {event.client}
+                        </Typography>
+                      </CardContent>
+                      <CardActions>
+                        <Button 
+                          size="small" 
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => navigate(`/event/${event.id}`)}
+                        >
+                          View Details
+                        </Button>
+                      </CardActions>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                No upcoming events scheduled.
+              </Typography>
+            )
+          ) : (
+            // Past events view
+            pastEvents.length > 0 ? (
+              <Grid container spacing={3}>
+                {pastEvents.map(event => (
+                  <Grid item xs={12} sm={6} md={4} key={event.id}>
+                    <Card elevation={1}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <Typography variant="h6" component="div">
+                            {event.name}
+                          </Typography>
+                          <IconButton
+                            aria-label="more"
+                            id={`event-menu-button-${event.id}`}
+                            aria-controls={menuOpen ? 'event-menu' : undefined}
+                            aria-expanded={menuOpen ? 'true' : undefined}
+                            aria-haspopup="true"
+                            onClick={(e) => handleMenuOpen(e, event.id)}
+                            size="small"
+                          >
+                            <MoreVertIcon />
+                          </IconButton>
+                        </Box>
+                        
+                        <Chip
+                          label="Completed"
+                          color="default"
+                          size="small"
+                          sx={{ mb: 1 }}
+                        />
+                        
+                        <Typography color="text.secondary" gutterBottom>
+                          Date: {format(new Date(event.date), 'MMMM d, yyyy')}
+                        </Typography>
+                        
+                        <Typography variant="body2" color="text.secondary">
+                          Venue: {event.venue}
+                        </Typography>
+                        
+                        <Typography variant="body2" color="text.secondary">
+                          Client: {event.client}
+                        </Typography>
+                      </CardContent>
+                      <CardActions>
+                        <Button 
+                          size="small" 
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => navigate(`/event/${event.id}`)}
+                        >
+                          View Details
+                        </Button>
+                      </CardActions>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                No past events found.
+              </Typography>
+            )
           )}
           
           <Menu
@@ -482,18 +610,22 @@ const MyEventsPage: React.FC = () => {
               </ListItemIcon>
               View Details
             </MenuItem>
-            <MenuItem onClick={handleMenuClose}>
-              <ListItemIcon>
-                <EditIcon fontSize="small" />
-              </ListItemIcon>
-              Edit Event Notes
-            </MenuItem>
-            <MenuItem onClick={handleMenuClose}>
-              <ListItemIcon>
-                <DeleteIcon fontSize="small" color="error" />
-              </ListItemIcon>
-              <Typography color="error">Cancel Event</Typography>
-            </MenuItem>
+            {eventViewMode === 'upcoming' && (
+              <>
+                <MenuItem onClick={handleMenuClose}>
+                  <ListItemIcon>
+                    <EditIcon fontSize="small" />
+                  </ListItemIcon>
+                  Edit Event Notes
+                </MenuItem>
+                <MenuItem onClick={handleMenuClose}>
+                  <ListItemIcon>
+                    <DeleteIcon fontSize="small" color="error" />
+                  </ListItemIcon>
+                  <Typography color="error">Cancel Event</Typography>
+                </MenuItem>
+              </>
+            )}
           </Menu>
         </Paper>
       </Container>
