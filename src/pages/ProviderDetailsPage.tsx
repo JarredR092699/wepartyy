@@ -22,7 +22,11 @@ import {
   ListItemAvatar,
   IconButton,
   CircularProgress,
-  styled
+  styled,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   LocationOn as LocationIcon,
@@ -51,16 +55,16 @@ import { useFavorites } from '../contexts/FavoritesContext';
 import Layout from '../components/Layout';
 import MessageButton from '../components/MessageButton';
 import { 
-  allDJs, 
-  allVenues, 
-  allCaterers, 
-  allEntertainment,
-  allPhotographers,
-  allDecorators,
-  allAudioVisual,
-  allFurniture,
-  allBarServices,
-  allSecurity,
+  venues, 
+  djs, 
+  cateringServices, 
+  entertainment,
+  photography,
+  decoration,
+  audioVisual,
+  furniture,
+  barServices,
+  security,
   Venue, 
   DJ, 
   CateringService, 
@@ -72,6 +76,9 @@ import {
   BarService, 
   Security 
 } from '../data/mockData';
+
+// Define the service type to match the one from FavoritesContext
+type ServiceType = 'venue' | 'dj' | 'catering' | 'entertainment' | 'photography' | 'decoration' | 'audioVisual' | 'furniture' | 'barService' | 'security';
 
 // Type for reviews
 interface Review {
@@ -184,6 +191,11 @@ const ProviderDetailsPage = () => {
   const [photos, setPhotos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Availability states
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [previouslySelectedDates, setPreviouslySelectedDates] = useState<string[]>([]);
+  const [bookingConfirmOpen, setBookingConfirmOpen] = useState(false);
+  
   // Rating distribution for analytics
   const [ratingDistribution, setRatingDistribution] = useState<number[]>([0, 0, 0, 0, 0]);
   
@@ -198,34 +210,34 @@ const ProviderDetailsPage = () => {
     
     switch (serviceType) {
       case 'venue':
-        foundService = allVenues.find(venue => venue.id === serviceId);
+        foundService = venues.find((venue: Venue) => venue.id === serviceId);
         break;
       case 'dj':
-        foundService = allDJs.find(dj => dj.id === serviceId);
+        foundService = djs.find((dj: DJ) => dj.id === serviceId);
         break;
       case 'catering':
-        foundService = allCaterers.find(caterer => caterer.id === serviceId);
+        foundService = cateringServices.find((caterer: CateringService) => caterer.id === serviceId);
         break;
       case 'entertainment':
-        foundService = allEntertainment.find(ent => ent.id === serviceId);
+        foundService = entertainment.find((ent: Entertainment) => ent.id === serviceId);
         break;
       case 'photography':
-        foundService = allPhotographers.find(photo => photo.id === serviceId);
+        foundService = photography.find((photo: Photography) => photo.id === serviceId);
         break;
       case 'decoration':
-        foundService = allDecorators.find(deco => deco.id === serviceId);
+        foundService = decoration.find((deco: Decoration) => deco.id === serviceId);
         break;
       case 'audioVisual':
-        foundService = allAudioVisual.find(av => av.id === serviceId);
+        foundService = audioVisual.find((av: AudioVisual) => av.id === serviceId);
         break;
       case 'furniture':
-        foundService = allFurniture.find(furn => furn.id === serviceId);
+        foundService = furniture.find((furn: Furniture) => furn.id === serviceId);
         break;
       case 'barService':
-        foundService = allBarServices.find(bar => bar.id === serviceId);
+        foundService = barServices.find((bar: BarService) => bar.id === serviceId);
         break;
       case 'security':
-        foundService = allSecurity.find(sec => sec.id === serviceId);
+        foundService = security.find((sec: Security) => sec.id === serviceId);
         break;
       default:
         navigate('/find-service');
@@ -245,6 +257,16 @@ const ProviderDetailsPage = () => {
     
     setReviews(serviceReviews);
     setPhotos(servicePhotos);
+    
+    // Load previously selected dates from localStorage
+    const storedSelectedDates = localStorage.getItem(`selectedDates_${serviceId}`);
+    if (storedSelectedDates) {
+      try {
+        setPreviouslySelectedDates(JSON.parse(storedSelectedDates));
+      } catch (error) {
+        console.error('Failed to parse previously selected dates', error);
+      }
+    }
     
     // Calculate rating distribution
     const distribution = [0, 0, 0, 0, 0];
@@ -330,7 +352,7 @@ const ProviderDetailsPage = () => {
               <Typography variant="body1" gutterBottom>{venue.size}</Typography>
               
               <Typography variant="subtitle1" gutterBottom>Capacity</Typography>
-              <Typography variant="body1" gutterBottom>{venue.capacity} people</Typography>
+              <Typography variant="body1" gutterBottom>{venue.description.includes('capacity') ? venue.description.split('capacity')[1].split(' ')[0] : '100'} people</Typography>
             </Grid>
             <Grid item xs={12} md={6}>
               <Typography variant="subtitle1" gutterBottom>Amenities</Typography>
@@ -431,6 +453,52 @@ const ProviderDetailsPage = () => {
     };
   };
   
+  // Handle date selection
+  const handleDateSelection = (date: string) => {
+    if (selectedDate === date) {
+      setSelectedDate(null);
+    } else {
+      setSelectedDate(date);
+    }
+  };
+  
+  // Handle booking confirmation
+  const handleBookingConfirm = () => {
+    if (!selectedDate || !currentUser) return;
+    
+    // Add the selected date to previously selected dates
+    const updatedSelectedDates = [...previouslySelectedDates, selectedDate];
+    setPreviouslySelectedDates(updatedSelectedDates);
+    
+    // Save to localStorage
+    if (serviceId) {
+      localStorage.setItem(`selectedDates_${serviceId}`, JSON.stringify(updatedSelectedDates));
+    }
+    
+    // Reset selected date and close dialog
+    setSelectedDate(null);
+    setBookingConfirmOpen(false);
+    
+    // In a real app, you would call an API to book the service here
+    
+    // Optionally navigate to create event page with this service pre-selected
+    navigate('/create-event', { 
+      state: { 
+        preSelectedService: {
+          id: serviceId,
+          type: serviceType,
+          date: selectedDate,
+          name: service?.name
+        }
+      }
+    });
+  };
+  
+  // Check if a date is previously selected
+  const isPreviouslySelected = (date: string): boolean => {
+    return previouslySelectedDates.includes(date);
+  };
+  
   if (loading) {
     return (
       <Layout title={`Loading Provider Details`}>
@@ -490,7 +558,7 @@ const ProviderDetailsPage = () => {
                 <CardMedia
                   component="img"
                   height="240"
-                  image={photos[0] || service.image || `https://picsum.photos/seed/${service.id}/400/400`}
+                  image={photos[0] || ('image' in service ? service.image : `https://picsum.photos/seed/${service.id}/400/400`)}
                   alt={service.name}
                   sx={{ borderRadius: 2 }}
                 />
@@ -589,7 +657,7 @@ const ProviderDetailsPage = () => {
                     if (isFavorited && serviceId) {
                       removeFavorite(serviceId);
                     } else if (serviceId) {
-                      addFavorite(serviceId, serviceType || '');
+                      addFavorite(serviceId, (serviceType || 'venue') as ServiceType);
                     }
                   }}
                   startIcon={<StarIcon />}
@@ -630,7 +698,7 @@ const ProviderDetailsPage = () => {
               About {service.name}
             </Typography>
             <Typography variant="body1" paragraph>
-              {service.description || `${service.name} is a premium ${formatServiceType(serviceType || '')} service provider with years of experience in the industry. We specialize in creating memorable experiences tailored to your specific needs.`}
+              {'description' in service ? service.description : `${service.name} is a premium ${formatServiceType(serviceType || '')} service provider with years of experience in the industry. We specialize in creating memorable experiences tailored to your specific needs.`}
             </Typography>
             
             <Divider sx={{ my: 3 }} />
@@ -769,27 +837,111 @@ const ProviderDetailsPage = () => {
               Available Dates
             </Typography>
             
-            {service.availability && service.availability.length > 0 ? (
-              <Grid container spacing={2}>
-                {service.availability.map((date, index) => (
-                  <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
-                    <Paper
-                      elevation={1}
-                      sx={{
-                        p: 2,
-                        textAlign: 'center',
-                        bgcolor: 'background.default',
-                        borderRadius: 2
-                      }}
+            {service?.availability && service.availability.length > 0 ? (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Click on a date to select it for booking. Previously selected dates are highlighted.
+                </Typography>
+                
+                <Grid container spacing={2}>
+                  {service.availability.map((date, index) => {
+                    const isSelected = date === selectedDate;
+                    const isPrevSelected = isPreviouslySelected(date);
+                    
+                    return (
+                      <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
+                        <Paper
+                          elevation={isSelected ? 3 : 1}
+                          sx={{
+                            p: 2,
+                            textAlign: 'center',
+                            bgcolor: isSelected 
+                              ? 'primary.light' 
+                              : isPrevSelected 
+                                ? 'success.light' 
+                                : 'background.default',
+                            borderRadius: 2,
+                            cursor: isPrevSelected ? 'default' : 'pointer',
+                            '&:hover': {
+                              bgcolor: isPrevSelected 
+                                ? 'success.light' 
+                                : isSelected 
+                                  ? 'primary.main' 
+                                  : 'action.hover'
+                            }
+                          }}
+                          onClick={() => !isPrevSelected && handleDateSelection(date)}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                            {isPrevSelected ? (
+                              <Typography variant="caption" color="success.dark" sx={{ fontWeight: 'bold' }}>
+                                BOOKED
+                              </Typography>
+                            ) : (
+                              <EventAvailableIcon color={isSelected ? "primary" : "action"} />
+                            )}
+                          </Box>
+                          <Typography 
+                            variant="body1"
+                            sx={{ 
+                              color: isSelected 
+                                ? 'primary.contrastText' 
+                                : isPrevSelected 
+                                  ? 'success.dark' 
+                                  : 'text.primary',
+                              fontWeight: isSelected || isPrevSelected ? 'bold' : 'regular'
+                            }}
+                          >
+                            {format(new Date(date), 'MMM d, yyyy')}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+                
+                {selectedDate && (
+                  <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <Typography variant="h6" gutterBottom>
+                      You selected: {format(new Date(selectedDate), 'MMMM d, yyyy')}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="large"
+                      sx={{ mt: 1 }}
+                      onClick={() => currentUser ? setBookingConfirmOpen(true) : navigate('/login')}
                     >
-                      <EventAvailableIcon color="primary" />
-                      <Typography variant="body1">
-                        {format(new Date(date), 'MMM d, yyyy')}
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                ))}
-              </Grid>
+                      {currentUser ? 'Confirm Booking' : 'Login to Book'}
+                    </Button>
+                  </Box>
+                )}
+                
+                {/* Booking confirmation dialog */}
+                <Dialog
+                  open={bookingConfirmOpen}
+                  onClose={() => setBookingConfirmOpen(false)}
+                  aria-labelledby="booking-dialog-title"
+                >
+                  <DialogTitle id="booking-dialog-title">
+                    Confirm Booking
+                  </DialogTitle>
+                  <DialogContent>
+                    <Typography variant="body1" paragraph>
+                      You are about to book {service.name} for {selectedDate && format(new Date(selectedDate), 'MMMM d, yyyy')}.
+                    </Typography>
+                    <Typography variant="body1">
+                      Would you like to proceed with this booking?
+                    </Typography>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button onClick={() => setBookingConfirmOpen(false)}>Cancel</Button>
+                    <Button onClick={handleBookingConfirm} variant="contained" color="primary">
+                      Confirm Booking
+                    </Button>
+                  </DialogActions>
+                </Dialog>
+              </>
             ) : (
               <Typography variant="body1" color="text.secondary">
                 No upcoming availability. Please contact the provider directly for custom scheduling.
@@ -798,10 +950,10 @@ const ProviderDetailsPage = () => {
             
             <Box sx={{ mt: 4 }}>
               <Typography variant="h6" gutterBottom>
-                Book This Service
+                Need Help Planning Your Event?
               </Typography>
               <Typography variant="body1" paragraph>
-                You can book this service by contacting the provider directly or through our platform.
+                Let us help you create a perfect event with this service and other complementary providers.
               </Typography>
               <Button
                 variant="contained"
