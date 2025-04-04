@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -263,6 +263,8 @@ const serviceTypeToFieldMap: Record<ServiceType, string> = {
 
 const CreateEventPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
   // Replace activeStep with activeTab
   const [activeTab, setActiveTab] = useState('dates');
   
@@ -271,6 +273,73 @@ const CreateEventPage: React.FC = () => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
+  
+  // Handle confirmedService from navigation state if it exists
+  useEffect(() => {
+    if (location.state) {
+      const { message, confirmedService } = location.state as any;
+      
+      // Show message if provided
+      if (message) {
+        setSnackbarMessage(message);
+        setSnackbarOpen(true);
+      }
+      
+      // Process confirmed service if provided
+      if (confirmedService) {
+        // Get the field name from the service type mapping
+        const fieldName = serviceTypeToFieldMap[confirmedService.type as ServiceType];
+        
+        if (fieldName) {
+          // Update the eventData with the selected service
+          setEventData(prevData => {
+            const updatedData = {
+              ...prevData,
+              [fieldName]: confirmedService.id,
+            };
+            
+            // If there's a date, handle it
+            if (confirmedService.date) {
+              const selectedDate = new Date(confirmedService.date);
+              
+              // If we're in single date mode
+              if (!prevData.isMultiDay && !prevData.isMultiSelect) {
+                updatedData.date = selectedDate;
+              } 
+              // If we're in multi-select mode
+              else if (prevData.isMultiSelect) {
+                updatedData.selectedDates = [...prevData.selectedDates, selectedDate];
+              }
+              // If we're in date range mode, set as start date if not set
+              else if (prevData.isMultiDay && !prevData.dateRange.start) {
+                updatedData.dateRange = {
+                  ...prevData.dateRange,
+                  start: selectedDate,
+                };
+              }
+            }
+            
+            return updatedData;
+          });
+          
+          // Store provider specific date selection if there's a date
+          if (confirmedService.date) {
+            const selectedDate = new Date(confirmedService.date);
+            setProviderSpecificDates(prevDates => ({
+              ...prevDates,
+              [confirmedService.id]: {
+                type: confirmedService.type as ServiceType,
+                date: selectedDate,
+              }
+            }));
+          }
+          
+          // Set the active tab to services instead of dates
+          setActiveTab('services');
+        }
+      }
+    }
+  }, [location.state]);
   
   // Define service categories
   const serviceCategories = [
