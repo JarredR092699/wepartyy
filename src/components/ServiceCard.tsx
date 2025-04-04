@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   CardContent,
@@ -59,6 +60,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, type, onClick }) => 
   const { name, price, rating, reviews } = service;
   const { currentUser } = useAuth();
   const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
+  const navigate = useNavigate();
   
   // Get type-specific properties
   const getTypeSpecificInfo = () => {
@@ -335,18 +337,29 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, type, onClick }) => 
   // Check if this service is favorited
   const isServiceFavorite = isFavorite(service.id);
 
+  // Function to handle card click
+  const handleCardClick = () => {
+    if (onClick) {
+      // Use the custom onClick if provided
+      onClick();
+    } else {
+      // Otherwise navigate to the provider details page
+      navigate(`/provider/${type}/${service.id}`);
+    }
+  };
+
   return (
     <Card 
       sx={{ 
         height: '100%', 
         display: 'flex', 
         flexDirection: 'column',
-        cursor: onClick ? 'pointer' : 'default'
+        cursor: 'pointer'
       }}
     >
       <CardContent 
         sx={{ flexGrow: 1 }}
-        onClick={onClick}
+        onClick={handleCardClick}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="h6" component="h2" noWrap sx={{ maxWidth: 'calc(100% - 30px)' }}>
@@ -390,7 +403,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, type, onClick }) => 
       </CardContent>
       
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1 }}>
-        {/* Favorite button */}
+        {/* Favorite button - stop propagation to prevent card click */}
         <IconButton
           onClick={(e) => {
             e.stopPropagation();
@@ -414,6 +427,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, type, onClick }) => 
             size="small" 
             color="primary"
             prefilledMessage={`Hi, I'm interested in your ${type} service.`}
+            onClick={(e) => e.stopPropagation()} // Stop propagation to prevent card click
           />
         )}
       </Box>

@@ -18,6 +18,7 @@ import EventDetailsPage from './pages/EventDetailsPage';
 import FavoritesPage from './pages/FavoritesPage';
 import ServiceListPage from './pages/ServiceListPage';
 import CreateServicePage from './pages/CreateServicePage';
+import ProviderDetailsPage from './pages/ProviderDetailsPage';
 
 // Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -58,6 +59,7 @@ function AppRoutes() {
       } />
       <Route path="/find-service" element={<FindServicePage />} />
       <Route path="/services/:serviceType" element={<ServiceListPage />} />
+      <Route path="/provider/:serviceType/:serviceId" element={<ProviderDetailsPage />} />
       <Route path="/my-events" element={
         <ProtectedRoute>
           <MyEventsPage />
