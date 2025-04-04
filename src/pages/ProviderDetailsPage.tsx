@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -199,6 +199,45 @@ const ProviderDetailsPage = () => {
   // Rating distribution for analytics
   const [ratingDistribution, setRatingDistribution] = useState<number[]>([0, 0, 0, 0, 0]);
   
+  // Load previously selected dates from localStorage
+  const loadPreviouslySelectedDates = useCallback(() => {
+    // First check service-specific selections
+    const serviceSpecificDates = localStorage.getItem(`selectedDates_${serviceId}`);
+    
+    // Then check event-wide service selections (for services selected in create-event flow)
+    const eventSelections = localStorage.getItem('eventServiceSelections');
+    
+    let allSelectedDates: string[] = [];
+    
+    if (serviceSpecificDates) {
+      try {
+        allSelectedDates = JSON.parse(serviceSpecificDates);
+      } catch (error) {
+        console.error('Failed to parse service-specific selected dates', error);
+      }
+    }
+    
+    if (eventSelections) {
+      try {
+        const selections = JSON.parse(eventSelections);
+        // Look for this service in event selections
+        const serviceSelection = selections.find((selection: any) => 
+          selection.serviceId === serviceId && selection.serviceType === serviceType
+        );
+        if (serviceSelection && serviceSelection.date) {
+          // Add this date if not already included
+          if (!allSelectedDates.includes(serviceSelection.date)) {
+            allSelectedDates.push(serviceSelection.date);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to parse event service selections', error);
+      }
+    }
+    
+    setPreviouslySelectedDates(allSelectedDates);
+  }, [serviceId, serviceType]);
+  
   useEffect(() => {
     if (!serviceId || !serviceType) {
       navigate('/find-service');
@@ -269,46 +308,7 @@ const ProviderDetailsPage = () => {
     setRatingDistribution(distribution);
     
     setLoading(false);
-  }, [serviceId, serviceType, navigate]);
-  
-  // Load previously selected dates from localStorage
-  const loadPreviouslySelectedDates = () => {
-    // First check service-specific selections
-    const serviceSpecificDates = localStorage.getItem(`selectedDates_${serviceId}`);
-    
-    // Then check event-wide service selections (for services selected in create-event flow)
-    const eventSelections = localStorage.getItem('eventServiceSelections');
-    
-    let allSelectedDates: string[] = [];
-    
-    if (serviceSpecificDates) {
-      try {
-        allSelectedDates = JSON.parse(serviceSpecificDates);
-      } catch (error) {
-        console.error('Failed to parse service-specific selected dates', error);
-      }
-    }
-    
-    if (eventSelections) {
-      try {
-        const selections = JSON.parse(eventSelections);
-        // Look for this service in event selections
-        const serviceSelection = selections.find((selection: any) => 
-          selection.serviceId === serviceId && selection.serviceType === serviceType
-        );
-        if (serviceSelection && serviceSelection.date) {
-          // Add this date if not already included
-          if (!allSelectedDates.includes(serviceSelection.date)) {
-            allSelectedDates.push(serviceSelection.date);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to parse event service selections', error);
-      }
-    }
-    
-    setPreviouslySelectedDates(allSelectedDates);
-  };
+  }, [serviceId, serviceType, navigate, loadPreviouslySelectedDates]);
   
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -542,10 +542,10 @@ const ProviderDetailsPage = () => {
     
     // In a real app, you would call an API to book the service here
     
-    // Navigate back to find-service
-    navigate('/find-service', { 
+    // Navigate to create-event page
+    navigate('/create-event', { 
       state: { 
-        message: `${formatServiceType(serviceType)} confirmed! Continue selecting other services for your event.`,
+        message: `${formatServiceType(serviceType)} confirmed! You can now continue planning your event.`,
         confirmedService: {
           id: serviceId,
           type: serviceType,
@@ -901,18 +901,6 @@ const ProviderDetailsPage = () => {
             
             {service?.availability && service.availability.length > 0 ? (
               <>
-                <Box sx={{ bgcolor: 'info.light', p: 2, borderRadius: 2, mb: 3 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'info.dark', mb: 1 }}>
-                    New Feature: Date Selection
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    • Click on any white date card to select it for booking<br />
-                    • Selected dates will appear in blue<br />
-                    • Previously booked dates are shown in green with a "BOOKED" label<br />
-                    • Click "Confirm Booking" to reserve this service for your event
-                  </Typography>
-                </Box>
-                
                 <Grid container spacing={2}>
                   {service.availability.map((date, index) => {
                     const isSelected = date === selectedDate;
@@ -998,7 +986,7 @@ const ProviderDetailsPage = () => {
                       sx={{ mt: 1, px: 4, py: 1.5, fontSize: '1.1rem' }}
                       onClick={() => currentUser ? setBookingConfirmOpen(true) : navigate('/login')}
                     >
-                      {currentUser ? `💫 Confirm ${formatServiceType(serviceType || '')}` : '🔒 Login to Book'}
+                      {currentUser ? `Confirm ${formatServiceType(serviceType || '')}` : 'Login to Book'}
                     </Button>
                   </Box>
                 ) : (
@@ -1029,7 +1017,7 @@ const ProviderDetailsPage = () => {
                       You are about to select <strong>{service.name}</strong> as your {formatServiceType(serviceType || '').toLowerCase()} for <strong>{selectedDate && format(new Date(selectedDate), 'MMMM d, yyyy')}</strong>.
                     </Typography>
                     <Typography variant="body1">
-                      After confirming, you'll be able to select other services for your event.
+                      After confirming, you'll be taken to the event creation page to continue planning.
                     </Typography>
                   </DialogContent>
                   <DialogActions sx={{ p: 2 }}>
